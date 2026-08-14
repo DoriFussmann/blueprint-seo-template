@@ -1,0 +1,31 @@
+---
+import { pagePath } from "../lib/url";
+
+interface Item {
+  name: string;
+  path: string;
+}
+
+interface Props {
+  items: Item[];
+}
+
+const { items } = Astro.props;
+---
+
+{items.length > 0 && (
+  <nav aria-label="Breadcrumb" class="my-6 text-sm">
+    <ol class="flex flex-wrap items-center gap-2">
+      {items.map((item, i) => (
+        <li class="flex items-center gap-2">
+          {i > 0 && <span aria-hidden="true">/</span>}
+          {i === items.length - 1 ? (
+            <span aria-current="page">{item.name}</span>
+          ) : (
+            <a href={pagePath(item.path)} class="no-underline">{item.name}</a>
+          )}
+        </li>
+      ))}
+    </ol>
+  </nav>
+)}

@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Dashboard</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body data-page="dashboard">
+  <div class="layout">
+    <nav class="side">
+      <h1>Local CMS</h1>
+      <a href="/articles.html">Articles</a>
+      <a href="/add-article.html">Add Article</a>
+      <a href="/articles-health.html">Articles Health</a>
+      <a href="/articles-update.html">Articles Update</a>
+      <a href="/team.html">Team</a>
+      <a href="/dashboard.html" class="active">Dashboard</a>
+    </nav>
+    <main>
+      <h1>Dashboard</h1>
+      <table>
+        <thead>
+          <tr>
+            <th>Title</th>
+            <th>Slug</th>
+            <th>Draft</th>
+            <th>Internal</th>
+            <th>External</th>
+            <th>FAQs</th>
+            <th>Updated</th>
+          </tr>
+        </thead>
+        <tbody id="dash-body"></tbody>
+      </table>
+    </main>
+  </div>
+  <script src="/app.js"></script>
+</body>
+</html>

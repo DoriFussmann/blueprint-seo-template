@@ -1,0 +1,55 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-background font-body text-base text-body antialiased;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply font-heading font-semibold text-heading;
+  }
+
+  a {
+    @apply text-accent underline-offset-2;
+  }
+
+  a:hover {
+    @apply underline;
+  }
+
+  :focus-visible {
+    @apply outline outline-2 outline-offset-2 outline-accent;
+  }
+
+  img {
+    @apply max-w-full h-auto;
+  }
+}
+
+@layer components {
+  .page-wrap {
+    @apply mx-auto w-full max-w-container px-4 sm:px-6 lg:px-8;
+  }
+
+  .hero-frame {
+    @apply aspect-video w-full overflow-hidden bg-border;
+  }
+
+  .hero-frame img,
+  .hero-frame picture img {
+    @apply h-full w-full object-cover;
+  }
+
+  .tap-target {
+    @apply inline-flex min-h-[44px] min-w-[44px] items-center justify-center;
+  }
+}

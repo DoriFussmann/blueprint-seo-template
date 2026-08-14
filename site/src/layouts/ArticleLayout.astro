@@ -1,0 +1,46 @@
+---
+import BaseLayout from "./BaseLayout.astro";
+import type { ImageMetadata } from "astro";
+
+interface BreadcrumbItem {
+  name: string;
+  path: string;
+}
+
+interface PersonLd {
+  name: string;
+  url?: string;
+  jobTitle?: string;
+  description?: string;
+  sameAs?: string[];
+  image?: string;
+}
+
+interface Props {
+  title: string;
+  description: string;
+  canonicalPath: string;
+  ogTitle?: string;
+  ogDescription?: string;
+  ogImage?: ImageMetadata;
+  robots?: string;
+  locale?: string;
+  twitterCard?: string;
+  schemaType?: string;
+  breadcrumbs?: BreadcrumbItem[];
+  person?: PersonLd;
+  faqs?: { question: string; answer: string }[];
+  datePublished?: Date | string;
+  dateModified?: Date | string;
+  articleSection?: string;
+  keywords?: string[];
+}
+
+const props = Astro.props;
+---
+
+<BaseLayout {...props}>
+  <article class="page-wrap py-8 lg:py-12">
+    <slot />
+  </article>
+</BaseLayout>

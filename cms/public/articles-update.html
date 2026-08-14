@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Articles Update</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body data-page="update">
+  <div class="layout">
+    <nav class="side">
+      <h1>Local CMS</h1>
+      <a href="/articles.html">Articles</a>
+      <a href="/add-article.html">Add Article</a>
+      <a href="/articles-health.html">Articles Health</a>
+      <a href="/articles-update.html" class="active">Articles Update</a>
+      <a href="/team.html">Team</a>
+      <a href="/dashboard.html">Dashboard</a>
+    </nav>
+    <main>
+      <h1>Articles Update</h1>
+      <div id="session-banner" class="banner hidden"></div>
+      <div class="drop" id="update-drop" tabindex="0">Drop a JSON updates file (or click to browse)</div>
+      <input type="file" id="update-file" accept="application/json,.json" class="hidden" />
+      <div id="update-rows"></div>
+      <div class="row">
+        <button type="button" id="confirm-all" class="primary" disabled>Confirm All</button>
+        <button type="button" id="download-receipt" class="hidden">Download confirmation receipt</button>
+      </div>
+    </main>
+  </div>
+  <script src="/app.js"></script>
+</body>
+</html>

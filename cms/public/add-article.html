@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Add Article</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body data-page="add">
+  <div class="layout">
+    <nav class="side">
+      <h1>Local CMS</h1>
+      <a href="/articles.html">Articles</a>
+      <a href="/add-article.html" class="active">Add Article</a>
+      <a href="/articles-health.html">Articles Health</a>
+      <a href="/articles-update.html">Articles Update</a>
+      <a href="/team.html">Team</a>
+      <a href="/dashboard.html">Dashboard</a>
+    </nav>
+    <main>
+      <h1>Add Article</h1>
+      <p class="muted">Max upload 10MB per file. Click a drop zone or drop files.</p>
+      <div class="row">
+        <button type="button" id="mode-single" class="primary">Single file</button>
+        <button type="button" id="mode-batch">Batch / zip</button>
+      </div>
+
+      <section id="single-panel">
+        <div class="drop" id="single-drop" tabindex="0">Drop one .md file (or click to browse)</div>
+        <input type="file" id="single-file" accept=".md,text/markdown" class="hidden" />
+        <div class="row" style="margin-top:12px">
+          <label>Author
+            <select id="single-author"></select>
+          </label>
+          <div class="drop" id="single-hero-drop" tabindex="0">Hero image (required this session)</div>
+          <input type="file" id="single-hero" accept="image/*" class="hidden" />
+        </div>
+        <p id="single-hero-status" class="muted"></p>
+        <div id="single-form"></div>
+        <button type="button" id="single-generate" class="primary" disabled>Generate</button>
+        <p id="single-status"></p>
+      </section>
+
+      <section id="batch-panel" class="hidden">
+        <div class="drop" id="batch-drop" tabindex="0">Drop multiple .md files or one .zip (or click to browse)</div>
+        <input type="file" id="batch-files" accept=".md,.zip" multiple class="hidden" />
+        <div class="row" style="margin-top:12px">
+          <label>Batch author
+            <select id="batch-author"></select>
+          </label>
+          <button type="button" id="apply-author">Apply author to all rows</button>
+          <div class="drop" id="batch-hero-drop" tabindex="0">Fallback hero for rows without a zip-paired image</div>
+          <input type="file" id="batch-hero" accept="image/*" class="hidden" />
+          <button type="button" id="apply-hero">Apply fallback hero</button>
+        </div>
+        <div id="batch-rows"></div>
+        <p id="batch-progress"></p>
+        <button type="button" id="batch-generate" class="primary" disabled>Generate All</button>
+      </section>
+    </main>
+  </div>
+  <script src="/app.js"></script>
+</body>
+</html>

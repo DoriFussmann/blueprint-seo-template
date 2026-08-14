@@ -1,0 +1,38 @@
+---
+import { Image } from "astro:assets";
+import type { ImageMetadata } from "astro";
+import { pagePath } from "../lib/url";
+
+interface Props {
+  name: string;
+  slug: string;
+  role: string;
+  bio: string;
+  credentials?: string;
+  photo: ImageMetadata;
+}
+
+const { name, slug, role, bio, credentials, photo } = Astro.props;
+---
+
+<aside class="my-10 border-t border-border pt-8">
+  <h2 class="mb-4 text-xl">About the author</h2>
+  <div class="flex flex-col gap-4 sm:flex-row">
+    <Image
+      src={photo}
+      alt={`Portrait of ${name}`}
+      width={96}
+      height={96}
+      class="h-24 w-24 object-cover"
+      loading="lazy"
+    />
+    <div>
+      <p class="font-heading text-lg font-semibold text-heading">
+        <a href={pagePath(`/team/#${slug}`)} class="no-underline">{name}</a>
+      </p>
+      <p class="text-sm text-muted">{role}</p>
+      {credentials && <p class="text-sm text-muted">{credentials}</p>}
+      <p class="mt-2">{bio}</p>
+    </div>
+  </div>
+</aside>

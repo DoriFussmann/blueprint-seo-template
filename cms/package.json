@@ -1,0 +1,20 @@
+{
+  "name": "cms",
+  "type": "module",
+  "scripts": {
+    "start": "tsx server.ts",
+    "dev": "tsx watch server.ts"
+  },
+  "dependencies": {
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "gray-matter": "^4.0.3",
+    "jszip": "^3.10.1",
+    "multer": "^2.2.0",
+    "tsx": "^4.23.12"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/multer": "^2.2.0"
+  }
+}

@@ -1,0 +1,117 @@
+---
+import { getCollection, getEntry, render } from "astro:content";
+import { Image, getImage } from "astro:assets";
+import ArticleLayout from "../../layouts/ArticleLayout.astro";
+import AuthorBio from "../../components/AuthorBio.astro";
+import Breadcrumbs from "../../components/Breadcrumbs.astro";
+import RelatedLinks from "../../components/RelatedLinks.astro";
+import Sources from "../../components/Sources.astro";
+import FaqBlock from "../../components/FaqBlock.astro";
+import TableOfContents from "../../components/TableOfContents.astro";
+import BackToTop from "../../components/BackToTop.astro";
+import { pagePath, absoluteUrl } from "../../lib/url";
+import { extractHeadings } from "../../lib/headings";
+import { formatDisplayDate, isLaterCalendarDay } from "../../lib/dates";
+
+export async function getStaticPaths() {
+  const articles = await getCollection("articles", ({ data }) => data.draft !== true);
+  return articles.map((entry) => ({
+    params: { slug: entry.data.slug },
+    props: { entry },
+  }));
+}
+
+const { entry } = Astro.props;
+const data = entry.data;
+
+if (data.slug !== entry.id && data.slug !== entry.id.replace(/\.md$/, "")) {
+  // filename/id should match slug; still render using frontmatter slug
+}
+
+const author = await getEntry("team", data.author);
+if (!author) {
+  throw new Error(
+    `Build failed: article "${data.slug}" references missing team entry "${data.author}"`
+  );
+}
+
+const { Content } = await render(entry);
+const headings = extractHeadings(entry.body);
+const h1 = data.h1 || data.title;
+const updated = data.updatedDate || data.date;
+const showUpdated = isLaterCalendarDay(data.updatedDate, data.date);
+const canonicalPath = data.canonical
+  ? data.canonical
+  : `/articles/${data.slug}/`;
+
+const authorImage = await getImage({
+  src: author.data.photo,
+  width: 256,
+  height: 256,
+});
+
+const breadcrumbs = [
+  { name: "Home", path: "/" },
+  { name: "Articles", path: "/articles/" },
+  { name: data.title, path: `/articles/${data.slug}/` },
+];
+---
+
+<ArticleLayout
+  title={data.title}
+  description={data.description}
+  canonicalPath={canonicalPath}
+  ogTitle={data.ogTitle}
+  ogDescription={data.ogDescription}
+  ogImage={data.ogImage || data.image}
+  robots={data.robots}
+  locale={data.locale}
+  twitterCard={data.twitterCard}
+  schemaType={data.schemaType}
+  breadcrumbs={breadcrumbs}
+  person={{
+    name: author.data.name,
+    url: absoluteUrl(`/team/#${author.data.slug}`),
+    jobTitle: author.data.role,
+    description: author.data.bio,
+    sameAs: author.data.sameAs,
+    image: new URL(authorImage.src, Astro.site).href,
+  }}
+  faqs={data.faqs || []}
+  datePublished={data.date}
+  dateModified={updated}
+  articleSection={data.category}
+  keywords={data.keywords || data.tags}
+>
+  <div class="hero-frame mb-8">
+    <Image
+      src={data.image}
+      alt={data.imageAlt}
+      width={1200}
+      height={675}
+      loading="eager"
+    />
+  </div>
+  <h1 class="text-4xl">{h1}</h1>
+  <p class="mt-4 text-sm text-muted">
+    Published on {formatDisplayDate(data.date)}
+    {showUpdated && ` · Updated on ${formatDisplayDate(data.updatedDate!)}`}
+  </p>
+  <TableOfContents headings={headings} />
+  <div class="prose-article max-w-article [&_h2]:mt-10 [&_h2]:text-2xl [&_h3]:mt-8 [&_h3]:text-xl [&_p]:mt-4 [&_ul]:mt-4 [&_ol]:mt-4">
+    <Content />
+  </div>
+  <BackToTop />
+  <AuthorBio
+    name={author.data.name}
+    slug={author.data.slug}
+    role={author.data.role}
+    bio={author.data.bio}
+    credentials={author.data.credentials}
+    photo={author.data.photo}
+  />
+  <Breadcrumbs items={breadcrumbs} />
+  <RelatedLinks links={data.internalLinks || []} />
+  <Sources links={data.externalLinks || []} />
+  <FaqBlock faqs={data.faqs || []} />
+</ArticleLayout>

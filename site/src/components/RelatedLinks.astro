@@ -1,0 +1,27 @@
+---
+import { pagePath } from "../lib/url";
+
+interface Link {
+  label: string;
+  url: string;
+}
+
+interface Props {
+  links?: Link[];
+}
+
+const { links = [] } = Astro.props;
+---
+
+{links.length > 0 && (
+  <section class="my-10">
+    <h2 class="mb-4 text-xl">Related Reads</h2>
+    <ul class="list-disc space-y-2 pl-5">
+      {links.map((link) => (
+        <li>
+          <a href={pagePath(link.url)}>{link.label}</a>
+        </li>
+      ))}
+    </ul>
+  </section>
+)}

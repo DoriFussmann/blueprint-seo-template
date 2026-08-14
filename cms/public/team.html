@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Team</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body data-page="team">
+  <div class="layout">
+    <nav class="side">
+      <h1>Local CMS</h1>
+      <a href="/articles.html">Articles</a>
+      <a href="/add-article.html">Add Article</a>
+      <a href="/articles-health.html">Articles Health</a>
+      <a href="/articles-update.html">Articles Update</a>
+      <a href="/team.html" class="active">Team</a>
+      <a href="/dashboard.html">Dashboard</a>
+    </nav>
+    <main>
+      <h1>Team</h1>
+      <div id="team-list"></div>
+      <h2>Add member</h2>
+      <form id="team-form" class="card">
+        <label>Name <input name="name" required /></label>
+        <label>Slug <input name="slug" required /></label>
+        <label>Role <input name="role" required /></label>
+        <label>Bio <textarea name="bio" rows="4" required></textarea></label>
+        <label>Credentials <input name="credentials" /></label>
+        <label>sameAs URLs (one per line) <textarea name="sameAs" rows="3"></textarea></label>
+        <label>Photo <input type="file" name="photo" accept="image/*" required /></label>
+        <button type="submit" class="primary">Save member</button>
+        <p id="team-status"></p>
+      </form>
+    </main>
+  </div>
+  <script src="/app.js"></script>
+</body>
+</html>

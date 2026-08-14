@@ -1,0 +1,22 @@
+---
+import type { Heading } from "../lib/headings";
+
+interface Props {
+  headings: Heading[];
+}
+
+const { headings } = Astro.props;
+---
+
+{headings.length > 0 && (
+  <nav aria-label="Table of contents" class="my-8 border border-border bg-surface p-4">
+    <h2 class="mb-3 text-lg">On this page</h2>
+    <ol class="space-y-2">
+      {headings.map((heading) => (
+        <li class={heading.depth === 3 ? "pl-4" : ""}>
+          <a href={`#${heading.id}`} class="no-underline">{heading.text}</a>
+        </li>
+      ))}
+    </ol>
+  </nav>
+)}

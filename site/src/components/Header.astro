@@ -1,0 +1,45 @@
+---
+import { SITE_NAME } from "../config/site";
+import { pagePath } from "../lib/url";
+---
+
+<header class="border-b border-border bg-surface">
+  <div class="page-wrap flex items-center justify-between gap-4 py-4">
+    <a href={pagePath("/")} class="font-heading text-lg font-semibold text-heading no-underline">
+      {SITE_NAME}
+    </a>
+    <button
+      type="button"
+      class="tap-target border border-border bg-surface px-3 md:hidden"
+      data-nav-toggle
+      aria-expanded="false"
+      aria-controls="site-nav"
+    >
+      Menu
+    </button>
+    <nav id="site-nav" class="max-md:hidden">
+      <ul class="flex flex-col gap-2 md:flex-row md:gap-6">
+        <li><a href={pagePath("/")} class="tap-target no-underline">Home</a></li>
+        <li>
+          <a href={pagePath("/articles/")} class="tap-target no-underline">Articles</a>
+        </li>
+        <li>
+          <a href={pagePath("/team/")} class="tap-target no-underline">Team</a>
+        </li>
+      </ul>
+    </nav>
+  </div>
+</header>
+
+<script is:inline>
+  (function () {
+    var btn = document.querySelector("[data-nav-toggle]");
+    var nav = document.getElementById("site-nav");
+    if (!btn || !nav) return;
+    btn.addEventListener("click", function () {
+      var open = btn.getAttribute("aria-expanded") === "true";
+      btn.setAttribute("aria-expanded", open ? "false" : "true");
+      nav.classList.toggle("max-md:hidden", open);
+    });
+  })();
+</script>

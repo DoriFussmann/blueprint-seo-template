@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Articles Health</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body data-page="health">
+  <div class="layout">
+    <nav class="side">
+      <h1>Local CMS</h1>
+      <a href="/articles.html">Articles</a>
+      <a href="/add-article.html">Add Article</a>
+      <a href="/articles-health.html" class="active">Articles Health</a>
+      <a href="/articles-update.html">Articles Update</a>
+      <a href="/team.html">Team</a>
+      <a href="/dashboard.html">Dashboard</a>
+    </nav>
+    <main>
+      <h1>Articles Health</h1>
+      <div id="session-banner" class="banner hidden"></div>
+      <div class="row">
+        <button type="button" id="connect-all" class="primary">Connect All Internal Links</button>
+        <button type="button" id="propose-all">Propose All External Links</button>
+      </div>
+      <p id="health-progress"></p>
+      <div class="card">
+        <h2>PageSpeed one-off test</h2>
+        <p class="muted">Scan any reachable URL to verify the integration. Seed articles have no live deploy.</p>
+        <div class="row">
+          <input id="speed-url" placeholder="https://example.com" />
+          <button type="button" id="speed-test">Scan URL</button>
+        </div>
+        <pre id="speed-result"></pre>
+      </div>
+      <div id="propose-review" class="hidden"></div>
+      <div id="health-list"></div>
+    </main>
+  </div>
+  <script src="/app.js"></script>
+</body>
+</html>
