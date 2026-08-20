@@ -22,13 +22,22 @@ keywords:
   - "improve core web vitals"
   - "howto"
   - "Technical SEO"
-draft: false
+draft: true
 internalLinks:
   - slug: "technical-seo-foundations"
     anchor: "technical seo foundations"
   - slug: "core-web-vitals-complete-guide"
     anchor: "core web vitals complete guide"
-externalLinks: []
+externalLinks:
+  - label: "Understanding Core Web Vitals and Google search results"
+    url: "https://developers.google.com/search/docs/appearance/core-web-vitals"
+    addedAt: "2026-08-20"
+  - label: "What are Google Core Web Vitals? Learn Technical SEO"
+    url: "https://moz.com/learn/seo/performance-metrics"
+    addedAt: "2026-08-20"
+  - label: "Core Web Vitals"
+    url: "https://web.dev/explore/learn-core-web-vitals"
+    addedAt: "2026-08-20"
 faqs: []
 ---
 
@@ -56,3 +65,7 @@ As of August 2026, the highest-leverage article-template work is still hero prel
 <!-- CMS-INTERNAL:START -->
 Further reading: [technical seo foundations](/articles/technical-seo-foundations/) · [core web vitals complete guide](/articles/core-web-vitals-complete-guide/).
 <!-- CMS-INTERNAL:END -->
+
+<!-- CMS-EXTERNAL:START -->
+Sources: [Understanding Core Web Vitals and Google search results](https://developers.google.com/search/docs/appearance/core-web-vitals) · [What are Google Core Web Vitals? Learn Technical SEO](https://moz.com/learn/seo/performance-metrics) · [Core Web Vitals](https://web.dev/explore/learn-core-web-vitals).
+<!-- CMS-EXTERNAL:END -->

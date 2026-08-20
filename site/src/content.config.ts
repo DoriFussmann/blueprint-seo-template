@@ -4,7 +4,7 @@ import { glob } from "astro/loaders";
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 
 const articles = defineCollection({
-  loader: glob({ pattern: "**/*.md", base: "./src/content/articles" }),
+  loader: glob({ pattern: "*.md", base: "./src/content/articles" }),
   schema: ({ image }) =>
     z.object({
       title: z.string().min(55).max(60),
@@ -43,7 +43,7 @@ const articles = defineCollection({
 });
 
 const team = defineCollection({
-  loader: glob({ pattern: "**/*.md", base: "./src/content/team" }),
+  loader: glob({ pattern: "*.md", base: "./src/content/team" }),
   schema: ({ image }) =>
     z.object({
       name: z.string(),
@@ -58,7 +58,7 @@ const team = defineCollection({
 });
 
 const services = defineCollection({
-  loader: glob({ pattern: "**/*.md", base: "./src/content/services" }),
+  loader: glob({ pattern: "*.md", base: "./src/content/services" }),
   schema: z.object({
     title: z.string(),
     description: z.string().min(140).max(160),

@@ -21,15 +21,25 @@ keywords:
   - "content strategy foundations"
   - "topic clusters"
   - "Content Strategy"
-draft: false
+draft: true
 internalLinks:
   - slug: "technical-seo-foundations"
     anchor: "technical seo foundations"
-externalLinks: []
+externalLinks:
+  - label: "Content Strategy: Study Guide"
+    url: "https://www.nngroup.com/articles/content-strategy-study-guide/"
+    addedAt: "2026-08-20"
+  - label: "Content Strategy in UX/UI Design"
+    url: "https://ixdf.org/literature/topics/content-strategy"
+    addedAt: "2026-08-20"
+  - label: "Content Strategy"
+    url: "https://moz.com/beginners-guide-to-content-marketing/content-strategy"
+    addedAt: "2026-08-20"
 faqs:
   - question: "When is a second comprehensive article a cannibal?"
     answer: "When it targets the same query as an existing published URL and does not own a distinct supporting keyword."
 ---
+
 
 Content strategy is how an editorial team decides which URL owns a query. Without that map, two well-written drafts compete, and internal links have nowhere durable to point.
 
@@ -55,3 +65,7 @@ As of August 2026, the teams that keep clusters healthy are the ones that assign
 <!-- CMS-INTERNAL:START -->
 Further reading: [technical seo foundations](/articles/technical-seo-foundations/).
 <!-- CMS-INTERNAL:END -->
+
+<!-- CMS-EXTERNAL:START -->
+Sources: [Content Strategy: Study Guide](https://www.nngroup.com/articles/content-strategy-study-guide/) · [Content Strategy in UX/UI Design](https://ixdf.org/literature/topics/content-strategy) · [Content Strategy](https://moz.com/beginners-guide-to-content-marketing/content-strategy).
+<!-- CMS-EXTERNAL:END -->

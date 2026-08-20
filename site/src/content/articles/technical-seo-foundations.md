@@ -21,7 +21,7 @@ keywords:
   - "technical seo foundations (no volume data)"
   - "crawlability"
   - "Technical SEO"
-draft: false
+draft: true
 internalLinks:
   - slug: "improve-core-web-vitals-howto"
     anchor: "improve core web vitals"
@@ -35,6 +35,15 @@ externalLinks:
     addedAt: "2026-08-20"
   - label: "web.dev documentation"
     url: "https://web.dev/"
+    addedAt: "2026-08-20"
+  - label: "Technical SEO Techniques and Strategies"
+    url: "https://developers.google.com/search/docs/fundamentals/get-started"
+    addedAt: "2026-08-20"
+  - label: "What is technical SEO? Basics and best practices"
+    url: "https://www.semrush.com/blog/technical-seo/"
+    addedAt: "2026-08-20"
+  - label: "The Beginner's Guide to Technical SEO"
+    url: "https://ahrefs.com/seo/technical-seo"
     addedAt: "2026-08-20"
 faqs:
   - question: "What should you fix first in technical SEO?"
@@ -71,5 +80,5 @@ Further reading: [improve core web vitals](/articles/improve-core-web-vitals-how
 <!-- CMS-INTERNAL:END -->
 
 <!-- CMS-EXTERNAL:START -->
-Sources: [Google Search Central documentation](https://developers.google.com/search/docs) · [web.dev documentation](https://web.dev/).
+Sources: [Google Search Central documentation](https://developers.google.com/search/docs) · [web.dev documentation](https://web.dev/) · [Technical SEO Techniques and Strategies](https://developers.google.com/search/docs/fundamentals/get-started) · [What is technical SEO? Basics and best practices](https://www.semrush.com/blog/technical-seo/) · [The Beginner's Guide to Technical SEO](https://ahrefs.com/seo/technical-seo).
 <!-- CMS-EXTERNAL:END -->
