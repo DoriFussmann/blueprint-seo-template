@@ -1,0 +1,105 @@
+---
+import { Image } from "astro:assets";
+import type { CollectionEntry } from "astro:content";
+import { ARTICLES_BASE } from "../config/site";
+import { formatDate } from "../lib/formatDate";
+
+interface Props {
+  articles: CollectionEntry<"articles">[];
+  pillars: string[];
+  page: number;
+  pages: number;
+}
+
+const { articles, pillars, page, pages } = Astro.props;
+---
+
+<form id="article-filters" class="mb-8 flex flex-wrap gap-4 items-end">
+  <label class="flex flex-col text-sm">
+    Search titles
+    <input type="search" name="q" id="filter-q" class="border border-border px-3 py-2 min-h-[44px] min-w-[16rem]" />
+  </label>
+  <label class="flex flex-col text-sm">
+    Core pillar keyword
+    <select name="pillar" id="filter-pillar" class="border border-border px-3 py-2 min-h-[44px]">
+      <option value="">All pillars</option>
+      {pillars.map((p) => <option value={p}>{p}</option>)}
+    </select>
+  </label>
+  <button type="button" id="clear-q" class="tap-target border border-border px-4">Clear search</button>
+  <button type="button" id="clear-pillar" class="tap-target border border-border px-4">Clear pillar</button>
+</form>
+<ul id="article-grid" class="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
+  {articles.map((article) => (
+    <li class="article-card" data-title={article.data.title} data-pillar={article.data.pillarKeyword ?? ""}>
+      <a href={`/${ARTICLES_BASE}/${article.id}/`} class="block">
+        <div class="hero-frame mb-3">
+          <Image
+            src={article.data.image}
+            width={600}
+            height={338}
+            alt={article.data.imageAlt}
+            loading="lazy"
+            widths={[320, 480, 600]}
+            sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+          />
+        </div>
+        <h2 class="font-serif text-xl mb-1">{article.data.title}</h2>
+        <p class="text-sm text-muted mb-2">{formatDate(article.data.updatedDate || article.data.date)}</p>
+        <p class="text-base">{article.data.description}</p>
+        <p class="mt-2 flex flex-wrap gap-2">
+          {article.data.tags.map((tag) => (
+            <span class="text-xs border border-border px-2 py-1">{tag}</span>
+          ))}
+        </p>
+      </a>
+    </li>
+  ))}
+</ul>
+{pages > 1 && (
+  <nav class="mt-10 flex gap-3" aria-label="Pagination">
+    {page > 1 && (
+      <a class="nav-link border border-border" href={page === 2 ? `/${ARTICLES_BASE}/` : `/${ARTICLES_BASE}/${page - 1}/`}>Previous</a>
+    )}
+    {page < pages && (
+      <a class="nav-link border border-border" href={`/${ARTICLES_BASE}/${page + 1}/`}>Next</a>
+    )}
+  </nav>
+)}
+<script is:inline>
+  (function () {
+    var params = new URLSearchParams(window.location.search);
+    var qInput = document.getElementById("filter-q");
+    var pInput = document.getElementById("filter-pillar");
+    var cards = document.querySelectorAll(".article-card");
+    if (!qInput || !pInput) return;
+    function apply() {
+      var q = (qInput.value || "").toLowerCase();
+      var pillar = pInput.value || "";
+      cards.forEach(function (card) {
+        var title = (card.getAttribute("data-title") || "").toLowerCase();
+        var p = card.getAttribute("data-pillar") || "";
+        var ok = (!q || title.indexOf(q) !== -1) && (!pillar || p === pillar);
+        card.style.display = ok ? "" : "none";
+      });
+    }
+    function syncUrl() {
+      var next = new URLSearchParams();
+      if (qInput.value) next.set("q", qInput.value);
+      if (pInput.value) next.set("pillar", pInput.value);
+      var qs = next.toString();
+      history.replaceState(null, "", window.location.pathname + (qs ? "?" + qs : ""));
+    }
+    qInput.value = params.get("q") || "";
+    pInput.value = params.get("pillar") || "";
+    apply();
+    qInput.addEventListener("input", function () { apply(); syncUrl(); });
+    pInput.addEventListener("change", function () { apply(); syncUrl(); });
+    document.getElementById("clear-q").addEventListener("click", function () {
+      qInput.value = ""; apply(); syncUrl();
+    });
+    document.getElementById("clear-pillar").addEventListener("click", function () {
+      pInput.value = ""; apply(); syncUrl();
+    });
+  })();
+</script>

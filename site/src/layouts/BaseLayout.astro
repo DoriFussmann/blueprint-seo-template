@@ -1,211 +1,99 @@
 ---
-import { getImage } from "astro:assets";
-import type { ImageMetadata } from "astro";
 import "../styles/global.css";
 import Header from "../components/Header.astro";
 import Footer from "../components/Footer.astro";
-import { SITE_NAME, SITE_URL, SAME_AS } from "../config/site";
-import { absoluteUrl } from "../lib/url";
-import { tokens } from "../../design-tokens.mjs";
-
-interface BreadcrumbItem {
-  name: string;
-  path: string;
-}
-
-interface PersonLd {
-  name: string;
-  url?: string;
-  jobTitle?: string;
-  description?: string;
-  sameAs?: string[];
-  image?: string;
-}
+import BackToTop from "../components/BackToTop.astro";
+import { SITE_NAME, GOOGLE_SITE_VERIFICATION } from "../config/site";
+import { abs } from "../lib/url";
+import interLatin from "@fontsource-variable/inter/files/inter-latin-wght-normal.woff2?url";
 
 interface Props {
   title: string;
   description: string;
   canonicalPath: string;
-  ogTitle?: string;
+  ogType?: string;
+  ogImage?: string;
   ogDescription?: string;
-  ogImage?: ImageMetadata;
   robots?: string;
   locale?: string;
-  twitterCard?: string;
-  schemaType?: string;
-  breadcrumbs?: BreadcrumbItem[];
-  person?: PersonLd;
-  faqs?: { question: string; answer: string }[];
-  datePublished?: Date | string;
-  dateModified?: Date | string;
-  articleSection?: string;
-  keywords?: string[];
+  twitterCard?: "summary" | "summary_large_image";
+  jsonLd: Record<string, unknown>;
+  articleMeta?: {
+    publishedTime: string;
+    modifiedTime: string;
+    author: string;
+    tags: string[];
+    section?: string;
+  };
 }
 
 const {
   title,
   description,
   canonicalPath,
-  ogTitle,
-  ogDescription,
+  ogType = "website",
   ogImage,
-  robots = "index, follow",
-  locale = "en-US",
+  ogDescription,
+  robots = "index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1",
+  locale = "en_US",
   twitterCard = "summary_large_image",
-  schemaType,
-  breadcrumbs = [],
-  person,
-  faqs = [],
-  datePublished,
-  dateModified,
-  articleSection,
-  keywords = [],
+  jsonLd,
+  articleMeta,
 } = Astro.props;
 
 if (!title) throw new Error("BaseLayout requires a title");
 if (!description) throw new Error("BaseLayout requires a description");
 
-const canonical = absoluteUrl(canonicalPath);
-const pageTitle = ogTitle || title;
-const pageDescription = ogDescription || description;
-const fontHref = `https://fonts.googleapis.com/css2?${(tokens.googleFonts || [])
-  .map((f: string) => `family=${f}`)
-  .join("&")}&display=swap`;
-
-let ogImageUrl: string | undefined;
-if (ogImage) {
-  const optimized = await getImage({
-    src: ogImage,
-    width: 1200,
-    height: 630,
-    format: "jpg",
-  });
-  ogImageUrl = new URL(optimized.src, SITE_URL).href;
-}
-
-const organization = {
-  "@context": "https://schema.org",
-  "@type": "Organization",
-  name: SITE_NAME,
-  url: absoluteUrl("/"),
-  sameAs: SAME_AS,
-};
-
-const breadcrumbLd =
-  breadcrumbs.length > 0
-    ? {
-        "@context": "https://schema.org",
-        "@type": "BreadcrumbList",
-        itemListElement: breadcrumbs.map((crumb, i) => ({
-          "@type": "ListItem",
-          position: i + 1,
-          name: crumb.name,
-          item: absoluteUrl(crumb.path),
-        })),
-      }
-    : null;
-
-const personLd = person
-  ? {
-      "@context": "https://schema.org",
-      "@type": "Person",
-      name: person.name,
-      url: person.url,
-      jobTitle: person.jobTitle,
-      description: person.description,
-      sameAs: person.sameAs || [],
-      image: person.image,
-    }
-  : null;
-
-const articleLd = schemaType
-  ? {
-      "@context": "https://schema.org",
-      "@type": schemaType,
-      headline: title,
-      description,
-      datePublished:
-        datePublished instanceof Date
-          ? datePublished.toISOString()
-          : datePublished,
-      dateModified: (() => {
-        const value = dateModified || datePublished;
-        return value instanceof Date ? value.toISOString() : value;
-      })(),
-      author: personLd
-        ? { "@type": "Person", name: personLd.name, url: personLd.url }
-        : undefined,
-      publisher: {
-        "@type": "Organization",
-        name: SITE_NAME,
-        url: absoluteUrl("/"),
-      },
-      image: ogImageUrl,
-      mainEntityOfPage: canonical,
-      articleSection,
-      keywords: keywords.join(", "),
-      inLanguage: locale,
-    }
-  : null;
-
-const faqLd =
-  faqs.length > 0
-    ? {
-        "@context": "https://schema.org",
-        "@type": "FAQPage",
-        mainEntity: faqs.map((faq) => ({
-          "@type": "Question",
-          name: faq.question,
-          acceptedAnswer: {
-            "@type": "Answer",
-            text: faq.answer,
-          },
-        })),
-      }
-    : null;
+const canonical = abs(canonicalPath);
+const metaDescription = description;
+const ogDesc = ogDescription || metaDescription;
+const rssHref = abs("/rss.xml");
 ---
 
 <!doctype html>
-<html lang={locale.split("-")[0] || "en"}>
+<html lang="en">
   <head>
-    <meta charset="UTF-8" />
+    <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{title}</title>
-    <meta name="description" content={description} />
+    <meta name="description" content={metaDescription} />
     <meta name="robots" content={robots} />
     <link rel="canonical" href={canonical} />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link rel="stylesheet" href={fontHref} />
-    <meta property="og:type" content={schemaType ? "article" : "website"} />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="alternate" type="application/rss+xml" title={SITE_NAME} href={rssHref} />
+    {GOOGLE_SITE_VERIFICATION && (
+      <meta name="google-site-verification" content={GOOGLE_SITE_VERIFICATION} />
+    )}
     <meta property="og:site_name" content={SITE_NAME} />
-    <meta property="og:title" content={pageTitle} />
-    <meta property="og:description" content={pageDescription} />
+    <meta property="og:type" content={ogType} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={ogDesc} />
     <meta property="og:url" content={canonical} />
-    {ogImageUrl && <meta property="og:image" content={ogImageUrl} />}
+    <meta property="og:locale" content={locale} />
+    {ogImage && <meta property="og:image" content={ogImage} />}
+    {articleMeta && (
+      <>
+        <meta property="article:published_time" content={articleMeta.publishedTime} />
+        <meta property="article:modified_time" content={articleMeta.modifiedTime} />
+        <meta property="article:author" content={articleMeta.author} />
+        {articleMeta.section && <meta property="article:section" content={articleMeta.section} />}
+        {articleMeta.tags.map((tag) => <meta property="article:tag" content={tag} />)}
+      </>
+    )}
     <meta name="twitter:card" content={twitterCard} />
-    <meta name="twitter:title" content={pageTitle} />
-    <meta name="twitter:description" content={pageDescription} />
-    {ogImageUrl && <meta name="twitter:image" content={ogImageUrl} />}
-    <script type="application/ld+json" set:html={JSON.stringify(organization)} />
-    {breadcrumbLd && (
-      <script type="application/ld+json" set:html={JSON.stringify(breadcrumbLd)} />
-    )}
-    {personLd && (
-      <script type="application/ld+json" set:html={JSON.stringify(personLd)} />
-    )}
-    {articleLd && (
-      <script type="application/ld+json" set:html={JSON.stringify(articleLd)} />
-    )}
-    {faqLd && (
-      <script type="application/ld+json" set:html={JSON.stringify(faqLd)} />
-    )}
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={ogDesc} />
+    {ogImage && <meta name="twitter:image" content={ogImage} />}
+    <link rel="preload" href={interLatin} as="font" type="font/woff2" crossorigin />
+    <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
   </head>
   <body>
+    <a class="skip-link" href="#main">Skip to content</a>
     <Header />
     <main id="main">
       <slot />
     </main>
     <Footer />
+    <BackToTop />
   </body>
 </html>

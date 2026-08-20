@@ -1,5 +1,0 @@
-# Site Name
-
-> Published articles from Site Name.
-
-## Articles

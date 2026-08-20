@@ -1,0 +1,102 @@
+---
+import { getCollection } from "astro:content";
+import { Image, getImage } from "astro:assets";
+import MarkdownIt from "markdown-it";
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import Breadcrumbs from "../../components/Breadcrumbs.astro";
+import { ARTICLES_BASE, SITE_NAME } from "../../config/site";
+import { formatDate } from "../../lib/formatDate";
+import { abs } from "../../lib/url";
+import { breadcrumbNode, orgNode, personNode, websiteNode } from "../../lib/jsonld";
+
+export async function getStaticPaths() {
+  const team = await getCollection("team");
+  return team.map((member) => ({ params: { slug: member.id }, props: { member } }));
+}
+
+const { member } = Astro.props;
+const articles = (
+  await getCollection("articles", ({ data }) => data.draft !== true && data.author === member.id)
+).sort((a, b) => (b.data.updatedDate || b.data.date).localeCompare(a.data.updatedDate || a.data.date));
+const photo = await getImage({ src: member.data.photo, width: 400, height: 400 });
+const md = new MarkdownIt();
+const bioHtml = md.render(member.data.bio);
+const bioPlain = bioHtml.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+const crumbs = [
+  { name: "Home", href: abs("/") },
+  { name: "Team", href: abs("/team/") },
+  { name: member.data.name, href: abs(`/team/${member.id}/`) },
+];
+const person = personNode({
+  slug: member.id,
+  name: member.data.name,
+  role: member.data.role,
+  description: bioPlain.slice(0, 300),
+  image: abs(photo.src),
+  sameAs: member.data.sameAs,
+  knowsAbout: member.data.knowsAbout,
+});
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@graph": [orgNode(), websiteNode(), person, breadcrumbNode(crumbs)],
+};
+const description =
+  bioPlain.length >= 140 && bioPlain.length <= 160
+    ? bioPlain
+    : `${member.data.name} is ${member.data.role}. Read credentials, focus areas, and published articles.`;
+---
+
+<BaseLayout
+  title={`${member.data.name} — ${SITE_NAME}`}
+  description={description.slice(0, 160)}
+  canonicalPath={`/team/${member.id}/`}
+  jsonLd={jsonLd}
+>
+  <div class="container-page py-10">
+    <Breadcrumbs crumbs={crumbs} />
+    <div class="flex flex-col md:flex-row gap-8 mb-10">
+      <Image
+        src={member.data.photo}
+        width={320}
+        height={320}
+        alt={`${member.data.name} headshot`}
+        loading="eager"
+        fetchpriority="high"
+        class="w-80 h-80 object-cover"
+      />
+      <div>
+        <h1 class="font-serif text-4xl mb-2">{member.data.name}</h1>
+        <p class="text-muted mb-4">{member.data.role}</p>
+        <div class="prose-article" set:html={bioHtml} />
+        {member.data.credentials.length > 0 && (
+          <section class="mt-6" aria-labelledby="creds-heading">
+            <h2 id="creds-heading" class="font-serif text-2xl mb-2">Credentials</h2>
+            <ul class="list-disc ml-6">
+              {member.data.credentials.map((item) => <li>{item}</li>)}
+            </ul>
+          </section>
+        )}
+        {member.data.sameAs.length > 0 && (
+          <p class="mt-4 flex flex-col gap-2">
+            {member.data.sameAs.map((url) => (
+              <a class="text-accent underline py-2" href={url} rel="noopener" target="_blank">{url}</a>
+            ))}
+          </p>
+        )}
+      </div>
+    </div>
+    {articles.length > 0 && (
+      <section aria-labelledby="authored-heading">
+        <h2 id="authored-heading" class="font-serif text-3xl mb-4">Articles</h2>
+        <ul class="space-y-3">
+          {articles.map((article) => (
+            <li>
+              <a class="text-accent underline" href={`/${ARTICLES_BASE}/${article.id}/`}>{article.data.title}</a>
+              <span class="text-muted text-sm"> · {formatDate(article.data.updatedDate || article.data.date)}</span>
+            </li>
+          ))}
+        </ul>
+      </section>
+    )}
+  </div>
+</BaseLayout>

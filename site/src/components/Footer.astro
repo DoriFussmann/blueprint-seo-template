@@ -1,20 +1,15 @@
 ---
-import { SITE_NAME } from "../config/site";
-import { pagePath } from "../lib/url";
+import { ARTICLES_BASE, SITE_NAME } from "../config/site";
 ---
 
-<footer class="mt-16 border-t border-border bg-surface">
-  <div class="page-wrap flex flex-col gap-4 py-8 sm:flex-row sm:items-center sm:justify-between">
-    <p class="text-sm text-muted">© {new Date().getFullYear()} {SITE_NAME}</p>
-    <nav aria-label="Footer">
-      <ul class="flex flex-wrap gap-4">
-        <li><a href={pagePath("/")} class="tap-target text-sm no-underline">Home</a></li>
-        <li>
-          <a href={pagePath("/articles/")} class="tap-target text-sm no-underline">Articles</a>
-        </li>
-        <li>
-          <a href={pagePath("/team/")} class="tap-target text-sm no-underline">Team</a>
-        </li>
+<footer class="border-t border-border mt-16">
+  <div class="container-page py-8 text-sm text-muted flex flex-wrap gap-4 items-center justify-between">
+    <p>© {new Date().getUTCFullYear()} {SITE_NAME}</p>
+    <nav>
+      <ul class="flex gap-2">
+        <li><a class="nav-link py-3" href="/">Home</a></li>
+        <li><a class="nav-link py-3" href={`/${ARTICLES_BASE}/`}>Articles</a></li>
+        <li><a class="nav-link py-3" href="/team/">Team</a></li>
       </ul>
     </nav>
   </div>

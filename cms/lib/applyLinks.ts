@@ -1,83 +1,60 @@
-import { MAX_EXTERNAL_LINKS } from "./constants.ts";
-import type { LinkItem } from "./schema.ts";
-import type { StoredArticle } from "./readContent.ts";
-import { writeArticleFile } from "./writeArticle.ts";
-import { isoDate } from "./schema.ts";
+import {
+  EXTERNAL_END,
+  EXTERNAL_START,
+  INTERNAL_END,
+  INTERNAL_START,
+  MAX_EXTERNAL_LINKS,
+} from "./constants";
+import { ARTICLES_BASE, SITE_URL } from "../../site/src/config/site.ts";
 
-function todayIso(): string {
-  const d = new Date();
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
+function escapeRe(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-export function capExternalLinks(links: LinkItem[]): LinkItem[] {
-  if (links.length <= MAX_EXTERNAL_LINKS) return links;
-  return links.slice(links.length - MAX_EXTERNAL_LINKS);
-}
-
-export function insertSignpost(
-  body: string,
-  headingPattern: RegExp,
-  line: string
-): string {
-  const text = String(body || "");
-  if (text.includes(line.trim())) return text;
-  const match = headingPattern.exec(text);
-  if (match && match.index != null) {
-    return `${text.slice(0, match.index).replace(/\s+$/, "")}\n\n${line}\n\n${text.slice(match.index)}`;
+function upsertBlock(body: string, start: string, end: string, inner: string): string {
+  const block = inner.trim() ? `${start}\n${inner.trim()}\n${end}` : "";
+  const re = new RegExp(`${escapeRe(start)}[\\s\\S]*?${escapeRe(end)}\\n?`);
+  if (re.test(body)) {
+    return body.replace(re, block ? `${block}\n` : "");
   }
-  return `${text.replace(/\s+$/, "")}\n\n${line}\n`;
+  if (!block) return body;
+  const related = /^## Related\b/m;
+  if (related.test(body)) return body.replace(related, `${block}\n\n## Related`);
+  return `${body.replace(/\s*$/, "")}\n\n${block}\n`;
 }
 
-export function applyInternalLinks(
-  article: StoredArticle,
-  links: LinkItem[]
-): StoredArticle {
-  const signpost =
-    links.length > 0
-      ? `Related reading: ${links.map((l) => `[${l.label}](${l.url})`).join(", ")}.`
-      : "";
-  const body = signpost
-    ? insertSignpost(article.body, /^##\s+Related(\s+Reads)?\s*$/im, signpost)
-    : article.body;
-  const data = {
-    ...article.data,
-    internalLinks: links,
-    updatedDate: todayIso(),
-  };
-  writeArticleFile(article.slug, data, body);
-  return { ...article, data, body };
+export function applyInternalSignpost(
+  body: string,
+  links: { slug: string; anchor: string }[],
+): string {
+  const inner = links
+    .map((link) => `[${link.anchor}](/${ARTICLES_BASE}/${link.slug}/)`)
+    .join(" · ");
+  const line = inner ? `Further reading: ${inner}.` : "";
+  return upsertBlock(body, INTERNAL_START, INTERNAL_END, line);
 }
 
-export function applyExternalLinks(
-  article: StoredArticle,
-  incoming: LinkItem[],
-  updatedDate?: string
-): StoredArticle {
-  const merged = capExternalLinks([
-    ...(article.data.externalLinks || []),
-    ...incoming.filter(
-      (link) =>
-        !(article.data.externalLinks || []).some((existing) => existing.url === link.url)
-    ),
-  ]);
-  const added = incoming.filter((link) =>
-    merged.some((row) => row.url === link.url)
-  );
-  const signpost =
-    added.length > 0
-      ? `Sources for this article include ${added.map((l) => `[${l.label}](${l.url})`).join(", ")}.`
-      : "";
-  const body = signpost
-    ? insertSignpost(article.body, /^##\s+Sources\s*$/im, signpost)
-    : article.body;
-  const data = {
-    ...article.data,
-    externalLinks: merged,
-    updatedDate: isoDate(updatedDate) || todayIso(),
-  };
-  writeArticleFile(article.slug, data, body);
-  return { ...article, data, body };
+export function applyExternalSignpost(
+  body: string,
+  links: { label: string; url: string }[],
+): string {
+  const inner = links.map((link) => `[${link.label}](${link.url})`).join(" · ");
+  const line = inner ? `Sources: ${inner}.` : "";
+  return upsertBlock(body, EXTERNAL_START, EXTERNAL_END, line);
+}
+
+export function trimExternalLinks<T extends { addedAt: string }>(links: T[]): T[] {
+  if (links.length <= MAX_EXTERNAL_LINKS) return links;
+  const sorted = [...links].sort((a, b) => a.addedAt.localeCompare(b.addedAt));
+  const drop = sorted.length - MAX_EXTERNAL_LINKS;
+  const removed = new Set(sorted.slice(0, drop));
+  return links.filter((link) => !removed.has(link));
+}
+
+export function ownHost(): string {
+  try {
+    return new URL(SITE_URL).hostname.replace(/^www\./, "");
+  } catch {
+    return "example.com";
+  }
 }

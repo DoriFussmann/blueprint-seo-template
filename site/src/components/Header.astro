@@ -1,45 +1,37 @@
 ---
-import { SITE_NAME } from "../config/site";
-import { pagePath } from "../lib/url";
+import { ARTICLES_BASE, SITE_NAME } from "../config/site";
 ---
 
 <header class="border-b border-border bg-surface">
-  <div class="page-wrap flex items-center justify-between gap-4 py-4">
-    <a href={pagePath("/")} class="font-heading text-lg font-semibold text-heading no-underline">
-      {SITE_NAME}
-    </a>
+  <div class="container-page flex items-center justify-between gap-4 py-2">
+    <a href="/" class="font-serif text-xl py-3">{SITE_NAME}</a>
     <button
       type="button"
-      class="tap-target border border-border bg-surface px-3 md:hidden"
-      data-nav-toggle
+      id="nav-toggle"
+      class="tap-target inline-flex items-center justify-center md:hidden"
       aria-expanded="false"
       aria-controls="site-nav"
     >
-      Menu
+      <span class="sr-only">Menu</span>
+      <span aria-hidden="true">☰</span>
     </button>
-    <nav id="site-nav" class="max-md:hidden">
-      <ul class="flex flex-col gap-2 md:flex-row md:gap-6">
-        <li><a href={pagePath("/")} class="tap-target no-underline">Home</a></li>
-        <li>
-          <a href={pagePath("/articles/")} class="tap-target no-underline">Articles</a>
-        </li>
-        <li>
-          <a href={pagePath("/team/")} class="tap-target no-underline">Team</a>
-        </li>
+    <nav id="site-nav" class="hidden md:block">
+      <ul class="flex flex-col md:flex-row md:items-center">
+        <li><a class="nav-link" href="/">Home</a></li>
+        <li><a class="nav-link" href={`/${ARTICLES_BASE}/`}>Articles</a></li>
+        <li><a class="nav-link" href="/team/">Team</a></li>
       </ul>
     </nav>
   </div>
 </header>
-
 <script is:inline>
   (function () {
-    var btn = document.querySelector("[data-nav-toggle]");
+    var toggle = document.getElementById("nav-toggle");
     var nav = document.getElementById("site-nav");
-    if (!btn || !nav) return;
-    btn.addEventListener("click", function () {
-      var open = btn.getAttribute("aria-expanded") === "true";
-      btn.setAttribute("aria-expanded", open ? "false" : "true");
-      nav.classList.toggle("max-md:hidden", open);
+    if (!toggle || !nav) return;
+    toggle.addEventListener("click", function () {
+      var open = nav.classList.toggle("hidden") === false;
+      toggle.setAttribute("aria-expanded", open ? "true" : "false");
     });
   })();
 </script>

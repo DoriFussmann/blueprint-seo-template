@@ -1,203 +1,39 @@
 ---
-import { getCollection, getEntry } from "astro:content";
-import { Image } from "astro:assets";
+import { getCollection } from "astro:content";
 import BaseLayout from "../../layouts/BaseLayout.astro";
-import { SITE_NAME } from "../../config/site";
-import { pagePath } from "../../lib/url";
-import { formatDisplayDate } from "../../lib/dates";
+import Breadcrumbs from "../../components/Breadcrumbs.astro";
+import ArticleListing from "../../components/ArticleListing.astro";
+import { ARTICLES_BASE, SITE_NAME } from "../../config/site";
+import { abs } from "../../lib/url";
+import { breadcrumbNode, orgNode, websiteNode } from "../../lib/jsonld";
 
-const published = (await getCollection("articles"))
-  .filter((entry) => !entry.data.draft)
-  .sort((a, b) => +b.data.date - +a.data.date);
-
-const topics = [
-  ...new Set(
-    published
-      .map((entry) => entry.data.pillarKeyword)
-      .filter((value): value is string => Boolean(value))
-  ),
-].sort();
-
-const authors = new Map<string, string>();
-for (const article of published) {
-  const person = await getEntry("team", article.data.author);
-  if (person) authors.set(article.data.author, person.data.name);
-}
-
-const title = `Articles | ${SITE_NAME}`;
-const description =
-  "Browse published articles. Filter by title or topic. Replace this listing description at Site Activation if needed.";
+const PAGE_SIZE = 12;
+const all = (await getCollection("articles", ({ data }) => data.draft !== true)).sort(
+  (a, b) => (b.data.updatedDate || b.data.date).localeCompare(a.data.updatedDate || a.data.date),
+);
+const pages = Math.max(1, Math.ceil(all.length / PAGE_SIZE));
+const slice = all.slice(0, PAGE_SIZE);
+const pillars = [...new Set(all.map((a) => a.data.pillarKeyword).filter(Boolean))] as string[];
+const canonicalPath = `/${ARTICLES_BASE}/`;
+const crumbs = [
+  { name: "Home", href: abs("/") },
+  { name: "Articles", href: abs(canonicalPath) },
+];
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@graph": [orgNode(), websiteNode(), breadcrumbNode(crumbs)],
+};
 ---
 
-<BaseLayout title={title} description={description} canonicalPath="/articles/">
-  <section class="page-wrap py-12">
-    <h1 class="text-4xl">Articles</h1>
-
-    <form id="article-filters" class="mt-8 flex flex-col gap-4 md:flex-row" role="search">
-      <label class="flex-1">
-        <span class="mb-1 block text-sm">Search titles</span>
-        <input
-          type="search"
-          name="q"
-          id="filter-q"
-          class="min-h-[44px] w-full border border-border bg-surface px-3"
-        />
-      </label>
-      <label class="md:w-64">
-        <span class="mb-1 block text-sm">Topic</span>
-        <select
-          name="topic"
-          id="filter-topic"
-          class="min-h-[44px] w-full border border-border bg-surface px-3"
-        >
-          <option value="">All topics</option>
-          {topics.map((topic) => (
-            <option value={topic}>{topic}</option>
-          ))}
-        </select>
-      </label>
-      <div class="flex items-end gap-2">
-        <button type="button" id="clear-q" class="tap-target border border-border px-4">
-          Clear search
-        </button>
-        <button type="button" id="clear-topic" class="tap-target border border-border px-4">
-          Clear topic
-        </button>
-      </div>
-    </form>
-
-    <p id="filter-empty" class="mt-8 hidden">No articles match these filters.</p>
-
-    <ul
-      id="article-grid"
-      class="mt-8 grid gap-8 sm:grid-cols-2 lg:grid-cols-3"
-    >
-      {published.map((article) => (
-        <li
-          data-title={article.data.title.toLowerCase()}
-          data-topic={article.data.pillarKeyword || ""}
-        >
-          <article>
-            <a
-              href={pagePath(`/articles/${article.data.slug}`)}
-              class="no-underline"
-            >
-              <div class="hero-frame mb-3">
-                <Image
-                  src={article.data.image}
-                  alt={article.data.imageAlt}
-                  width={640}
-                  height={360}
-                  loading="lazy"
-                />
-              </div>
-              <h2 class="text-xl">{article.data.title}</h2>
-            </a>
-            <p class="mt-2 text-sm text-muted">
-              {formatDisplayDate(article.data.date)}
-              {authors.get(article.data.author)
-                ? ` · ${authors.get(article.data.author)}`
-                : ""}
-            </p>
-          </article>
-        </li>
-      ))}
-    </ul>
-
-    <nav id="pager" class="mt-10 flex flex-wrap gap-2" aria-label="Pagination"></nav>
-  </section>
+<BaseLayout
+  title={`${SITE_NAME} articles`}
+  description="Browse published articles covering technical SEO, content strategy, and the operational systems behind them."
+  canonicalPath={canonicalPath}
+  jsonLd={jsonLd}
+>
+  <div class="container-page py-10">
+    <Breadcrumbs crumbs={crumbs} />
+    <h1 class="font-serif text-4xl mb-6">Articles</h1>
+    <ArticleListing articles={slice} pillars={pillars} page={1} pages={pages} />
+  </div>
 </BaseLayout>
-
-<script is:inline>
-  (function () {
-    var PAGE_SIZE = 9;
-    var params = new URLSearchParams(window.location.search);
-    var qInput = document.getElementById("filter-q");
-    var topicSelect = document.getElementById("filter-topic");
-    var grid = document.getElementById("article-grid");
-    var empty = document.getElementById("filter-empty");
-    var pager = document.getElementById("pager");
-    if (!qInput || !topicSelect || !grid) return;
-
-    qInput.value = params.get("q") || "";
-    topicSelect.value = params.get("topic") || "";
-    var page = Math.max(1, parseInt(params.get("page") || "1", 10) || 1);
-
-    function syncUrl(nextPage) {
-      var next = new URLSearchParams();
-      if (qInput.value.trim()) next.set("q", qInput.value.trim());
-      if (topicSelect.value) next.set("topic", topicSelect.value);
-      if (nextPage > 1) next.set("page", String(nextPage));
-      var qs = next.toString();
-      history.replaceState(null, "", qs ? "?" + qs : window.location.pathname);
-    }
-
-    function apply() {
-      var q = qInput.value.trim().toLowerCase();
-      var topic = topicSelect.value;
-      var items = Array.prototype.slice.call(grid.children);
-      var matched = items.filter(function (li) {
-        var titleOk = !q || (li.getAttribute("data-title") || "").indexOf(q) !== -1;
-        var topicOk = !topic || li.getAttribute("data-topic") === topic;
-        var ok = titleOk && topicOk;
-        return ok;
-      });
-      var totalPages = Math.max(1, Math.ceil(matched.length / PAGE_SIZE));
-      if (page > totalPages) page = totalPages;
-      items.forEach(function (li) {
-        li.hidden = true;
-      });
-      matched.forEach(function (li, i) {
-        var start = (page - 1) * PAGE_SIZE;
-        li.hidden = i < start || i >= start + PAGE_SIZE;
-      });
-      if (empty) empty.classList.toggle("hidden", matched.length > 0);
-      if (pager) {
-        pager.innerHTML = "";
-        if (totalPages > 1) {
-          for (var i = 1; i <= totalPages; i += 1) {
-            var btn = document.createElement("button");
-            btn.type = "button";
-            btn.textContent = String(i);
-            btn.className = "tap-target border border-border px-3" + (i === page ? " bg-primary text-surface" : "");
-            btn.setAttribute("aria-current", i === page ? "page" : "false");
-            btn.addEventListener("click", function (n) {
-              return function () {
-                page = n;
-                apply();
-              };
-            }(i));
-            pager.appendChild(btn);
-          }
-        }
-      }
-      syncUrl(page);
-    }
-
-    qInput.addEventListener("input", function () {
-      page = 1;
-      apply();
-    });
-    topicSelect.addEventListener("change", function () {
-      page = 1;
-      apply();
-    });
-    var clearQ = document.getElementById("clear-q");
-    var clearTopic = document.getElementById("clear-topic");
-    if (clearQ) {
-      clearQ.addEventListener("click", function () {
-        qInput.value = "";
-        page = 1;
-        apply();
-      });
-    }
-    if (clearTopic) {
-      clearTopic.addEventListener("click", function () {
-        topicSelect.value = "";
-        page = 1;
-        apply();
-      });
-    }
-    apply();
-  })();
-</script>

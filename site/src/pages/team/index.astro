@@ -2,51 +2,50 @@
 import { getCollection } from "astro:content";
 import { Image } from "astro:assets";
 import BaseLayout from "../../layouts/BaseLayout.astro";
+import Breadcrumbs from "../../components/Breadcrumbs.astro";
 import { SITE_NAME } from "../../config/site";
+import { abs } from "../../lib/url";
+import { breadcrumbNode, orgNode, websiteNode } from "../../lib/jsonld";
 
-const members = await getCollection("team");
-const title = `Team | ${SITE_NAME}`;
-const description =
-  "People behind this site. Default template author remains until Site Activation replaces or extends the team collection.";
+const team = await getCollection("team");
+const crumbs = [
+  { name: "Home", href: abs("/") },
+  { name: "Team", href: abs("/team/") },
+];
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@graph": [orgNode(), websiteNode(), breadcrumbNode(crumbs)],
+};
 ---
 
-<BaseLayout title={title} description={description} canonicalPath="/team/">
-  <section class="page-wrap py-12">
-    <h1 class="text-4xl">Team</h1>
-    <ul class="mt-10 space-y-12">
-      {members.map((member) => (
-        <li id={member.data.slug}>
-          <article class="flex flex-col gap-6 sm:flex-row">
-            <Image
-              src={member.data.photo}
-              alt={`Portrait of ${member.data.name}`}
-              width={160}
-              height={160}
-              class="h-40 w-40 object-cover"
-              loading="lazy"
-            />
-            <div>
-              <h2 class="text-2xl">{member.data.name}</h2>
-              <p class="mt-1 text-muted">{member.data.role}</p>
-              {member.data.credentials && (
-                <p class="mt-1 text-sm text-muted">{member.data.credentials}</p>
-              )}
-              <p class="mt-4">{member.data.bio}</p>
-              {member.data.sameAs.length > 0 && (
-                <ul class="mt-4 flex flex-wrap gap-4">
-                  {member.data.sameAs.map((url) => (
-                    <li>
-                      <a href={url} target="_blank" rel="noopener noreferrer">
-                        {url.replace(/^https?:\/\//, "")}
-                      </a>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          </article>
+<BaseLayout
+  title={`${SITE_NAME} team`}
+  description="People behind the publication — operators and editors who write, review, and maintain the guides on this site."
+  canonicalPath="/team/"
+  jsonLd={jsonLd}
+>
+  <div class="container-page py-10">
+    <Breadcrumbs crumbs={crumbs} />
+    <h1 class="font-serif text-4xl mb-8">Team</h1>
+    <ul class="grid gap-8 md:grid-cols-2">
+      {team.map((member) => (
+        <li class="flex gap-4">
+          <Image
+            src={member.data.photo}
+            width={120}
+            height={120}
+            alt={`${member.data.name} headshot`}
+            loading="lazy"
+            class="w-[120px] h-[120px] object-cover"
+          />
+          <div>
+            <h2 class="font-serif text-2xl">
+              <a class="hover:text-accent" href={`/team/${member.id}/`}>{member.data.name}</a>
+            </h2>
+            <p class="text-muted">{member.data.role}</p>
+          </div>
         </li>
       ))}
     </ul>
-  </section>
+  </div>
 </BaseLayout>

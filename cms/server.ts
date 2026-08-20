@@ -1,617 +1,504 @@
-import dotenv from "dotenv";
-import express, { type Request, type Response, type NextFunction } from "express";
+import { config as loadEnv } from "dotenv";
+import express from "express";
 import multer from "multer";
-import path from "node:path";
-import fs from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
+import { dirname, extname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import AdmZip from "adm-zip";
 import matter from "gray-matter";
-import JSZip from "jszip";
-import { SITE_URL, SITE_NAME } from "../site/src/config/site.ts";
-import { absoluteUrl } from "../site/src/lib/url.ts";
-import { CMS_PORT, MAX_UPLOAD_BYTES } from "./lib/constants.ts";
-import { DIST_DIR, SERVICES_DIR } from "./lib/paths.ts";
-import { normalizeIntake, type ArticleFrontmatter } from "./lib/schema.ts";
+import sizeOf from "image-size";
+import { DEFAULT_AUTHOR, SITE_NAME } from "../site/src/config/site.ts";
+import { connectInternalLinks } from "./lib/connectInternalLinks.ts";
+import { MAX_UPLOAD_BYTES, MIN_EXTERNAL_LINKS, MAX_EXTERNAL_LINKS } from "./lib/constants.ts";
+import {
+  connectExternalLinks,
+  countUncachedSerpCalls,
+  searchExternalLinks,
+} from "./lib/externalLinkSearch.ts";
+import { CMS_ROOT, DIST_DIR } from "./lib/paths.ts";
+import { runPagespeedPanel } from "./lib/providers/pagespeed.js";
+import { distHasSlug, distJsonLd, publishedArticles, readArticles, readTeam } from "./lib/readContent.ts";
 import { validateFrontmatter } from "./lib/validateFrontmatter.ts";
-import {
-  knownSlugs,
-  readAllArticles,
-  readArticle,
-  readTeamMembers,
-  type StoredArticle,
-} from "./lib/readContent.ts";
-import { writeArticle, deleteArticle, writeArticleFile } from "./lib/writeArticle.ts";
+import { heroExtFromName, stagedHeroes, writeArticle } from "./lib/writeArticle.ts";
 import { writeTeamMember } from "./lib/writeTeamMember.ts";
-import { generateLlmsTxt } from "./lib/generateLlmsTxt.ts";
-import {
-  connectAll,
-  connectArticle,
-  linkHealth,
-  missingInternalLinks,
-  requiredInternalLinks,
-} from "./lib/connectInternalLinks.ts";
-import { proposeExternalLinks } from "./lib/externalLinkSearch.ts";
-import { applyExternalLinks } from "./lib/applyLinks.ts";
-import { runPagespeedPanel, speedState } from "./lib/pagespeed.ts";
-import { extractWts, replaceWtsParagraph } from "./lib/wts.ts";
+import { replaceWtsParagraph } from "./lib/wts.ts";
+import { todayIso } from "./lib/coerceDate.ts";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-dotenv.config({ path: path.join(__dirname, ".env") });
+loadEnv({ path: join(CMS_ROOT, ".env") });
+
+const here = dirname(fileURLToPath(import.meta.url));
 const app = express();
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: MAX_UPLOAD_BYTES },
 });
 
-const staging = new Map<string, { buffer: Buffer; originalName: string; mime?: string }>();
+let sessionUpdates = 0;
+const receipts: { slug: string; confirmedDate: string; confirmedAt: string }[] = [];
+
+function sessionPayload() {
+  return { sessionUpdates, banner: `${sessionUpdates} articles updated this session — remember to commit, push, and deploy.` };
+}
+
+function bumpSession(n = 1) {
+  sessionUpdates += n;
+}
 
 app.use(express.json({ limit: "12mb" }));
-app.use(express.static(path.join(__dirname, "public")));
-
-function jsonError(res: Response, status: number, error: string, extra: Record<string, unknown> = {}) {
-  return res.status(status).json({ ok: false, error, ...extra });
-}
-
-app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-  if (err?.code === "LIMIT_FILE_SIZE") {
-    return jsonError(res, 413, `File exceeds ${MAX_UPLOAD_BYTES / (1024 * 1024)}MB limit`);
-  }
-  return jsonError(res, 500, err?.message || "Unhandled CMS error");
+app.use(express.urlencoded({ extended: true }));
+app.use((req, res, next) => {
+  res.locals.session = sessionPayload();
+  next();
 });
 
-function parseMarkdown(buffer: Buffer | string, filename = ""): {
-  data: ArticleFrontmatter;
-  body: string;
-  filename: string;
-} {
-  const raw = typeof buffer === "string" ? buffer : buffer.toString("utf8");
+function fail(res: express.Response, status: number, error: string, extra: Record<string, unknown> = {}) {
+  res.status(status).json({ ok: false, error, ...sessionPayload(), ...extra });
+}
+
+function stem(filename: string) {
+  return filename.replace(/\.[^.]+$/, "").toLowerCase();
+}
+
+function parseMarkdownBuffer(file: Express.Multer.File) {
+  const raw = file.buffer.toString("utf8");
   const parsed = matter(raw);
-  const data = normalizeIntake(parsed.data as Record<string, unknown>);
-  if (!data.slug && filename) data.slug = filename.replace(/\.md$/i, "");
-  return { data, body: parsed.content, filename };
+  return { filename: file.originalname, stem: stem(file.originalname), data: parsed.data as Record<string, unknown>, body: parsed.content, raw };
 }
 
-function validateOne(
-  data: ArticleFrontmatter,
-  stagedHero: boolean,
-  isEdit = false
-) {
-  return validateFrontmatter(data, {
-    stagedHero,
-    knownSlugs: knownSlugs(),
-    existingSlugs: knownSlugs().articles,
-    isEdit,
-  });
+function heroWarning(buffer: Buffer) {
+  try {
+    const size = sizeOf(buffer);
+    const warnings: string[] = [];
+    if ((size.width || 0) < 1200) warnings.push(`Hero is ${size.width}px wide (under 1200px)`);
+    if (buffer.length > 1024 * 1024) warnings.push(`Hero is ${(buffer.length / (1024 * 1024)).toFixed(1)}MB (over 1MB)`);
+    return warnings;
+  } catch {
+    return ["Could not read hero dimensions"];
+  }
 }
 
-function publicArticle(row: StoredArticle) {
-  return {
-    slug: row.slug,
-    filename: row.filename,
-    ...row.data,
-    internalLinkCount: (row.data.internalLinks || []).length,
-    externalLinkCount: (row.data.externalLinks || []).length,
-    faqCount: (row.data.faqs || []).length,
-    body: row.body,
-  };
-}
-
-app.get("/api/config", (_req, res) => {
-  res.json({
-    ok: true,
-    siteUrl: SITE_URL,
-    siteName: SITE_NAME,
-    maxUploadBytes: MAX_UPLOAD_BYTES,
-    maxUploadMb: MAX_UPLOAD_BYTES / (1024 * 1024),
-  });
-});
-
-app.get("/api/slugs", (_req, res) => {
-  res.json({ ok: true, ...knownSlugs() });
-});
-
-app.get("/api/articles", (_req, res) => {
-  res.json({
-    ok: true,
-    articles: readAllArticles().map(publicArticle),
-  });
-});
-
-app.get("/api/articles/:slug", (req, res) => {
-  const row = readArticle(req.params.slug);
-  if (!row) return jsonError(res, 404, `Article "${req.params.slug}" not found`);
-  res.json({ ok: true, article: publicArticle(row) });
-});
-
-app.post("/api/parse", upload.single("file"), (req, res) => {
-  try {
-    const file = req.file;
-    const markdown = file ? file.buffer : req.body?.markdown;
-    const filename = file?.originalname || req.body?.filename || "";
-    if (!markdown) return jsonError(res, 400, "No markdown supplied");
-    const parsed = parseMarkdown(markdown, filename);
-    const stagedHero = Boolean(req.body?.stagedHero);
-    const isEdit = Boolean(req.body?.isEdit);
-    const validation = validateOne(parsed.data, stagedHero, isEdit);
-    res.json({ ok: true, ...parsed, validation });
-  } catch (err: any) {
-    jsonError(res, 400, err?.message || "Parse failed");
-  }
-});
-
-app.post("/api/parse-batch", upload.array("files", 50), async (req, res) => {
-  try {
-    const files = (req.files as Express.Multer.File[]) || [];
-    const zipFile = files.find((f) => /\.zip$/i.test(f.originalname));
-    const rows: Array<{
-      filename: string;
-      slug: string;
-      data: ArticleFrontmatter;
-      body: string;
-      stagedHeroId?: string;
-      validation: ReturnType<typeof validateOne>;
-    }> = [];
-
-    async function addMd(name: string, buf: Buffer, hero?: { buffer: Buffer; originalName: string }) {
-      const parsed = parseMarkdown(buf, name);
-      let stagedHeroId: string | undefined;
-      if (hero) {
-        stagedHeroId = `${parsed.data.slug || name}-hero-${Date.now()}`;
-        staging.set(stagedHeroId, hero);
-      }
-      const validation = validateOne(parsed.data, Boolean(stagedHeroId));
-      rows.push({
-        filename: name,
-        slug: parsed.data.slug,
-        data: parsed.data,
-        body: parsed.body,
-        stagedHeroId,
-        validation,
-      });
-    }
-
-    if (zipFile) {
-      const zip = await JSZip.loadAsync(zipFile.buffer);
-      const mdFiles: Array<{ name: string; buf: Buffer }> = [];
-      const images = new Map<string, { buffer: Buffer; originalName: string }>();
-      for (const [name, entry] of Object.entries(zip.files)) {
-        if (entry.dir) continue;
-        const base = path.basename(name);
-        const buf = Buffer.from(await entry.async("nodebuffer"));
-        if (/\.md$/i.test(base)) mdFiles.push({ name: base, buf });
-        if (/\.(png|jpe?g|webp|gif)$/i.test(base)) {
-          images.set(base.replace(/\.[^.]+$/, "").toLowerCase(), {
-            buffer: buf,
-            originalName: base,
-          });
-        }
-      }
-      for (const file of mdFiles) {
-        const slug = file.name.replace(/\.md$/i, "").toLowerCase();
-        await addMd(file.name, file.buf, images.get(slug));
-      }
-    } else {
-      for (const file of files.filter((f) => /\.md$/i.test(f.originalname))) {
-        await addMd(file.originalname, file.buffer);
-      }
-    }
-
-    res.json({ ok: true, rows });
-  } catch (err: any) {
-    jsonError(res, 400, err?.message || "Batch parse failed");
-  }
-});
-
-app.post("/api/upload-image", upload.single("file"), (req, res) => {
-  if (!req.file) return jsonError(res, 400, "No image uploaded");
-  const id = `img-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-  staging.set(id, {
-    buffer: req.file.buffer,
-    originalName: req.file.originalname,
-    mime: req.file.mimetype,
-  });
-  res.json({ ok: true, stagingId: id, name: req.file.originalname });
-});
-
-app.post("/api/articles", (req, res) => {
-  try {
-    const { data, body, stagingId, skipLlms } = req.body || {};
-    if (!data) return jsonError(res, 400, "Missing article data");
-    const fm = normalizeIntake(data);
-    const hero = stagingId ? staging.get(String(stagingId)) : null;
-    const validation = validateOne(fm, Boolean(hero), Boolean(req.body?.isEdit));
-    if (validation.missing.length) {
-      return jsonError(res, 400, "Validation failed", { validation });
-    }
-    const result = writeArticle({ data: fm, body: String(body || ""), hero });
-    if (hero && stagingId) staging.delete(String(stagingId));
-    if (!skipLlms) generateLlmsTxt();
-    res.json({ ok: true, ...result });
-  } catch (err: any) {
-    jsonError(res, 400, err?.message || "Write failed");
-  }
-});
-
-app.post("/api/articles/batch", async (req, res) => {
-  try {
-    const items = Array.isArray(req.body?.items) ? req.body.items : [];
-    const results = [];
-    for (const item of items) {
-      try {
-        const fm = normalizeIntake(item.data || {});
-        const hero = item.stagingId ? staging.get(String(item.stagingId)) : null;
-        const validation = validateOne(fm, Boolean(hero), Boolean(item.isEdit));
-        if (validation.missing.length) {
-          results.push({
-            slug: fm.slug,
-            ok: false,
-            error: validation.missing.map((m) => m.message).join("; "),
-          });
-          continue;
-        }
-        const written = writeArticle({
-          data: fm,
-          body: String(item.body || ""),
-          hero,
-        });
-        if (hero && item.stagingId) staging.delete(String(item.stagingId));
-        results.push({ slug: written.slug, ok: true });
-      } catch (err: any) {
-        results.push({
-          slug: item?.data?.slug,
-          ok: false,
-          error: err?.message || "Write failed",
-        });
-      }
-    }
-    generateLlmsTxt();
-    res.json({ ok: true, results });
-  } catch (err: any) {
-    jsonError(res, 400, err?.message || "Batch write failed");
-  }
-});
-
-app.patch("/api/articles/:slug", (req, res) => {
-  try {
-    const row = readArticle(req.params.slug);
-    if (!row) return jsonError(res, 404, "Article not found");
-    const next = { ...row.data, ...(req.body?.data || {}) };
-    if (typeof req.body?.draft === "boolean") next.draft = req.body.draft;
-    if (typeof req.body?.body === "string") row.body = req.body.body;
-    writeArticleFile(row.slug, next, row.body);
-    generateLlmsTxt();
-    res.json({ ok: true, slug: row.slug });
-  } catch (err: any) {
-    jsonError(res, 400, err?.message || "Update failed");
-  }
-});
-
-app.delete("/api/articles/:slug", (req, res) => {
-  deleteArticle(req.params.slug);
-  generateLlmsTxt();
-  res.json({ ok: true });
-});
+app.get("/api/session", (_req, res) => res.json({ ok: true, ...sessionPayload(), defaultAuthor: DEFAULT_AUTHOR, siteName: SITE_NAME }));
 
 app.get("/api/team", (_req, res) => {
-  res.json({ ok: true, team: readTeamMembers() });
+  res.json({ ok: true, ...sessionPayload(), team: readTeam() });
 });
 
 app.post("/api/team", upload.single("photo"), (req, res) => {
   try {
-    const data = typeof req.body?.data === "string" ? JSON.parse(req.body.data) : req.body;
     const photo = req.file
-      ? { buffer: req.file.buffer, originalName: req.file.originalname, mime: req.file.mimetype }
-      : null;
-    const result = writeTeamMember({ data, photo });
-    res.json({ ok: true, ...result });
-  } catch (err: any) {
-    jsonError(res, 400, err?.message || "Team write failed");
+      ? { buffer: req.file.buffer, ext: extname(req.file.originalname) || ".jpg" }
+      : undefined;
+    const credentials = String(req.body.credentials || "")
+      .split(/\n/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+    const knowsAbout = String(req.body.knowsAbout || "")
+      .split(/\n|,/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+    const sameAs = String(req.body.sameAs || "")
+      .split(/\n/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+    const result = writeTeamMember({
+      name: String(req.body.name || ""),
+      role: String(req.body.role || ""),
+      bio: String(req.body.bio || ""),
+      credentials,
+      knowsAbout,
+      sameAs,
+      email: req.body.email || undefined,
+      photo,
+      slug: req.body.slug || undefined,
+    });
+    bumpSession();
+    res.json({ ok: true, ...result, ...sessionPayload() });
+  } catch (err) {
+    fail(res, 400, err instanceof Error ? err.message : String(err));
   }
 });
 
-app.get("/api/services", (_req, res) => {
-  if (!fs.existsSync(SERVICES_DIR)) return res.json({ ok: true, services: [] });
-  const services = fs
-    .readdirSync(SERVICES_DIR)
-    .filter((name) => name.endsWith(".md"))
-    .map((filename) => {
-      const parsed = matter(fs.readFileSync(path.join(SERVICES_DIR, filename), "utf8"));
-      return { filename, data: parsed.data, body: parsed.content };
-    });
-  res.json({ ok: true, services });
+app.get("/api/articles", (_req, res) => {
+  const articles = readArticles().map((a) => ({
+    slug: a.slug,
+    title: a.data.title,
+    author: a.data.author,
+    pillarKeyword: a.data.pillarKeyword,
+    supportingKeyword: a.data.supportingKeyword,
+    articleType: a.data.articleType,
+    date: a.data.date,
+    updatedDate: a.data.updatedDate,
+    draft: a.data.draft === true,
+    internalCount: Array.isArray(a.data.internalLinks) ? a.data.internalLinks.length : 0,
+    externalCount: Array.isArray(a.data.externalLinks) ? a.data.externalLinks.length : 0,
+    targetKeyword: a.data.targetKeyword,
+    imageAlt: a.data.imageAlt,
+    published_url: a.data.published_url,
+  }));
+  res.json({ ok: true, ...sessionPayload(), articles });
 });
 
-app.get("/api/health", (_req, res) => {
-  const articles = readAllArticles().filter((row) => !row.data.draft);
+function parseIncomingFiles(files: Express.Multer.File[]) {
+  const markdown: ReturnType<typeof parseMarkdownBuffer>[] = [];
+  const images = new Map<string, Express.Multer.File>();
+  const unmatched: Express.Multer.File[] = [];
+
+  for (const file of files) {
+    const name = file.originalname.toLowerCase();
+    if (name.endsWith(".zip")) {
+      const zip = new AdmZip(file.buffer);
+      for (const entry of zip.getEntries()) {
+        if (entry.isDirectory) continue;
+        const base = entry.entryName.split("/").pop() || entry.entryName;
+        const fake = {
+          originalname: base,
+          buffer: entry.getData(),
+          mimetype: "",
+          size: entry.header.size,
+        } as Express.Multer.File;
+        if (base.toLowerCase().endsWith(".md")) markdown.push(parseMarkdownBuffer(fake));
+        else if (/\.(png|jpe?g|webp)$/i.test(base)) images.set(stem(base), fake);
+      }
+    } else if (name.endsWith(".md")) {
+      markdown.push(parseMarkdownBuffer(file));
+    } else if (/\.(png|jpe?g|webp)$/i.test(name)) {
+      images.set(stem(file.originalname), file);
+    } else {
+      unmatched.push(file);
+    }
+  }
+  return { markdown, images, unmatched };
+}
+
+app.post("/api/parse", upload.any(), (req, res) => {
+  try {
+    const files = (req.files as Express.Multer.File[]) || [];
+    const { markdown, images } = parseIncomingFiles(files);
+    const author = String(req.body.author || DEFAULT_AUTHOR);
+    const rows = markdown.map((md) => {
+      const paired = images.get(md.stem);
+      const intake = validateFrontmatter({
+        filenameStem: md.stem,
+        rawData: md.data,
+        rawBody: md.body,
+        draft: false,
+        authorOverride: author,
+      });
+      const warnings = [...intake.warnings];
+      if (paired) warnings.push(...heroWarning(paired.buffer).map((message) => ({ field: "image", message })));
+      else if (!intake.data.image) warnings.push({ field: "image", message: "No paired hero image" });
+      return {
+        slug: md.stem,
+        filename: md.filename,
+        ok: intake.ok && Boolean(paired || intake.data.image),
+        errors: intake.ok && !(paired || intake.data.image)
+          ? [...intake.errors, { field: "image", message: "Hero image required" }]
+          : intake.errors,
+        warnings,
+        data: intake.data,
+        body: intake.body,
+        hasImage: Boolean(paired),
+      };
+    });
+    const assigned = new Set(markdown.map((m) => m.stem));
+    const unassigned = [...images.entries()]
+      .filter(([s]) => !assigned.has(s))
+      .map(([s, f]) => ({ stem: s, filename: f.originalname }));
+    res.json({ ok: true, ...sessionPayload(), rows, unassigned, defaultAuthor: author });
+  } catch (err) {
+    fail(res, 400, err instanceof Error ? err.message : String(err));
+  }
+});
+
+app.post("/api/generate", upload.any(), (req, res) => {
+  try {
+    const files = (req.files as Express.Multer.File[]) || [];
+    const { markdown, images } = parseIncomingFiles(files);
+    const payloads = req.body.rows ? JSON.parse(String(req.body.rows)) as {
+      slug: string;
+      author?: string;
+      draft?: boolean;
+      imageStem?: string;
+    }[] : markdown.map((m) => ({ slug: m.stem, author: req.body.author, draft: false }));
+
+    const results = [];
+    for (const row of payloads) {
+      const md = markdown.find((m) => m.stem === row.slug);
+      if (!md) {
+        results.push({ slug: row.slug, ok: false, error: "Markdown missing from payload" });
+        continue;
+      }
+      const imageFile = (row.imageStem && images.get(row.imageStem)) || images.get(row.slug);
+      if (imageFile) {
+        stagedHeroes.set(row.slug, { buffer: imageFile.buffer, ext: heroExtFromName(imageFile.originalname) });
+      }
+      const intake = validateFrontmatter({
+        filenameStem: row.slug,
+        rawData: md.data,
+        rawBody: md.body,
+        draft: Boolean(row.draft),
+        authorOverride: row.author || req.body.author || DEFAULT_AUTHOR,
+      });
+      if (!intake.ok) {
+        results.push({ slug: row.slug, ok: false, error: intake.errors.map((e) => e.message).join("; "), errors: intake.errors });
+        continue;
+      }
+      try {
+        const written = writeArticle({ data: intake.data, body: intake.body, slug: intake.slug });
+        if (written.changed) bumpSession();
+        results.push({ slug: row.slug, ok: true, changed: written.changed, warnings: intake.warnings });
+      } catch (err) {
+        results.push({ slug: row.slug, ok: false, error: err instanceof Error ? err.message : String(err) });
+      }
+    }
+    res.json({ ok: true, ...sessionPayload(), results });
+  } catch (err) {
+    fail(res, 400, err instanceof Error ? err.message : String(err));
+  }
+});
+
+app.post("/api/health/connect-internal", async (_req, res) => {
+  try {
+    const result = await connectInternalLinks();
+    bumpSession(result.updated.length);
+    res.json({ ok: true, ...result, ...sessionPayload() });
+  } catch (err) {
+    fail(res, 500, err instanceof Error ? err.message : String(err));
+  }
+});
+
+app.get("/api/health/external-count", (_req, res) => {
+  res.json({ ok: true, calls: countUncachedSerpCalls(), ...sessionPayload() });
+});
+
+app.post("/api/health/search-external", async (_req, res) => {
+  try {
+    const result = await searchExternalLinks();
+    res.json({ ok: true, ...result, ...sessionPayload() });
+  } catch (err) {
+    fail(res, 500, err instanceof Error ? err.message : String(err));
+  }
+});
+
+app.post("/api/health/connect-external", (req, res) => {
+  try {
+    const result = connectExternalLinks(req.body.selections || []);
+    bumpSession(result.updated.length);
+    res.json({ ok: true, ...result, ...sessionPayload() });
+  } catch (err) {
+    fail(res, 500, err instanceof Error ? err.message : String(err));
+  }
+});
+
+async function headStatus(url: string): Promise<number | "timeout" | "error"> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 10000);
+  try {
+    const resHead = await fetch(url, { method: "HEAD", signal: controller.signal, redirect: "follow" });
+    return resHead.status;
+  } catch (err) {
+    return (err as { name?: string })?.name === "AbortError" ? "timeout" : "error";
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+app.get("/api/health", async (_req, res) => {
+  try {
+    const articles = readArticles();
+    const published = articles.filter((a) => a.data.draft !== true);
+    const titles = new Map<string, string[]>();
+    const descs = new Map<string, string[]>();
+    const targets = new Map<string, string[]>();
+    for (const a of published) {
+      const t = String(a.data.title || "");
+      const d = String(a.data.description || "");
+      const k = String(a.data.targetKeyword || "").trim().toLowerCase();
+      titles.set(t, [...(titles.get(t) || []), a.slug]);
+      descs.set(d, [...(descs.get(d) || []), a.slug]);
+      if (k) targets.set(k, [...(targets.get(k) || []), a.slug]);
+    }
+
+    const inbound = new Map<string, number>();
+    for (const a of published) inbound.set(a.slug, 0);
+    for (const a of published) {
+      for (const link of (a.data.internalLinks as { slug: string }[]) || []) {
+        inbound.set(link.slug, (inbound.get(link.slug) || 0) + 1);
+      }
+    }
+
+    const rows = [];
+    for (const article of articles) {
+      const pub = article.data.draft !== true;
+      const internals = (article.data.internalLinks as { slug: string }[]) || [];
+      const externals = (article.data.externalLinks as { url: string }[]) || [];
+      const pillars = published.filter(
+        (p) =>
+          String(p.data.articleType).toLowerCase() === "comprehensive" &&
+          !p.data.supportingKeyword &&
+          String(p.data.pillarKeyword || "").trim().toLowerCase() ===
+            String(article.data.pillarKeyword || "").trim().toLowerCase(),
+      );
+      const missingPillarLink = pub && !(!article.data.supportingKeyword && String(article.data.articleType).toLowerCase() === "comprehensive")
+        && pillars.length > 0 && !internals.some((l) => pillars.some((p) => p.slug === l.slug));
+
+      const broken: { url: string; status: number | string }[] = [];
+      if (pub) {
+        for (const link of externals) {
+          const status = await headStatus(link.url);
+          if (status !== 200) broken.push({ url: link.url, status });
+        }
+      }
+
+      const title = String(article.data.title || "");
+      const description = String(article.data.description || "");
+      rows.push({
+        slug: article.slug,
+        title: article.data.title,
+        date: article.data.date,
+        updatedDate: article.data.updatedDate,
+        draft: article.data.draft === true,
+        published_url: article.data.published_url,
+        indicators: {
+          links: {
+            type: "actionable",
+            orphan: pub ? (inbound.get(article.slug) || 0) === 0 : false,
+            missingPillarLink: Boolean(missingPillarLink),
+            externalCount: externals.length,
+            externalLow: pub && externals.length < MIN_EXTERNAL_LINKS,
+            externalHigh: pub && externals.length > MAX_EXTERNAL_LINKS,
+            broken,
+          },
+          meta: {
+            type: "diagnostic",
+            titleLength: title.length,
+            descriptionLength: description.length,
+            duplicateTitle: (titles.get(title) || []).length > 1,
+            duplicateDescription: (descs.get(description) || []).length > 1,
+          },
+          cluster: {
+            type: "diagnostic",
+            cannibalization: pub && (targets.get(String(article.data.targetKeyword || "").trim().toLowerCase()) || []).length > 1,
+            comprehensiveWithoutPillar:
+              String(article.data.articleType).toLowerCase() === "comprehensive" && !article.data.pillarKeyword,
+          },
+          body: {
+            type: "diagnostic",
+            wts: /WHERE-THINGS-STAND:START/.test(article.body) && /WHERE-THINGS-STAND:END/.test(article.body),
+            keyTakeaways: /^## Key Takeaways\s*$/m.test(article.body),
+            singleH1: article.body.split(/\n/).filter((l) => /^#\s+/.test(l) && !/^##/.test(l)).length === 0,
+            imageAlt: typeof article.data.imageAlt === "string" && article.data.imageAlt.length >= 10,
+          },
+          schemaSitemap: {
+            type: "diagnostic",
+            jsonLd: pub ? distJsonLd(article.slug) : { ok: false, reason: "draft" },
+            inSitemap: pub ? distHasSlug(article.slug) : false,
+          },
+          speed: {
+            type: "diagnostic",
+            scanned: false,
+          },
+        },
+      });
+    }
+    res.json({ ok: true, ...sessionPayload(), minExternal: MIN_EXTERNAL_LINKS, maxExternal: MAX_EXTERNAL_LINKS, rows });
+  } catch (err) {
+    fail(res, 500, err instanceof Error ? err.message : String(err));
+  }
+});
+
+app.post("/api/health/pagespeed", async (req, res) => {
+  try {
+    const url = String(req.body.url || "");
+    if (!url) return fail(res, 400, "url is required");
+    const result = await runPagespeedPanel({ siteUrl: url });
+    res.json({ ok: true, result, ...sessionPayload() });
+  } catch (err) {
+    fail(res, 500, err instanceof Error ? err.message : String(err));
+  }
+});
+
+app.post("/api/update/preview", upload.single("file"), (req, res) => {
+  try {
+    let payload: unknown;
+    if (req.file) payload = JSON.parse(req.file.buffer.toString("utf8"));
+    else payload = req.body.updates ?? JSON.parse(String(req.body.json || "[]"));
+    if (!Array.isArray(payload)) return fail(res, 400, "Update payload must be a JSON array");
+    const articles = readArticles();
+    const rows = payload.map((item: { slug: string; newParagraph: string; newUpdatedDate: string; newSources: { title: string; url: string }[] }) => {
+      const article = articles.find((a) => a.slug === item.slug);
+      const current = article
+        ? (article.body.match(/<!--\s*WHERE-THINGS-STAND:START\s*-->[\s\S]*?<!--\s*WHERE-THINGS-STAND:END\s*-->/) || [""])[0]
+        : "";
+      return {
+        ...item,
+        matched: Boolean(article),
+        currentParagraph: current,
+      };
+    });
+    const unmatched = rows.filter((r) => !r.matched).map((r) => r.slug);
+    res.json({ ok: true, unmatched, rows, ...sessionPayload() });
+  } catch (err) {
+    fail(res, 400, err instanceof Error ? err.message : String(err));
+  }
+});
+
+app.post("/api/update/confirm", (req, res) => {
+  try {
+    const items = req.body.items as {
+      slug: string;
+      newParagraph: string;
+      newUpdatedDate: string;
+      newSources?: { title: string; url: string; checked?: boolean }[];
+    }[];
+    const confirmedAt = new Date().toISOString();
+    const confirmed = [];
+    for (const item of items) {
+      const article = readArticles().find((a) => a.slug === item.slug);
+      if (!article) continue;
+      const body = replaceWtsParagraph(article.body, item.newParagraph);
+      const externals = Array.isArray(article.data.externalLinks)
+        ? [...(article.data.externalLinks as { label: string; url: string; addedAt: string }[])]
+        : [];
+      for (const source of item.newSources || []) {
+        if (source.checked === false) continue;
+        if (externals.some((e) => e.url === source.url)) continue;
+        externals.push({ label: source.title, url: source.url, addedAt: todayIso() });
+      }
+      writeArticle({
+        data: { ...article.data, updatedDate: item.newUpdatedDate, externalLinks: externals },
+        body,
+        slug: article.slug,
+      });
+      const receipt = { slug: item.slug, confirmedDate: item.newUpdatedDate, confirmedAt };
+      receipts.push(receipt);
+      confirmed.push(receipt);
+      bumpSession();
+    }
+    res.json({ ok: true, confirmed, ...sessionPayload() });
+  } catch (err) {
+    fail(res, 400, err instanceof Error ? err.message : String(err));
+  }
+});
+
+app.get("/api/update/receipt", (_req, res) => {
+  const date = todayIso();
+  const slug = SITE_NAME.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "site-name";
   res.json({
     ok: true,
-    articles: articles.map((row) => ({
-      slug: row.slug,
-      title: row.data.title,
-      links: linkHealth(row),
-      requiredInternal: requiredInternalLinks(row),
-      missingInternal: missingInternalLinks(row),
-      externalCount: (row.data.externalLinks || []).length,
-      canonical: row.data.canonical || absoluteUrl(`/articles/${row.slug}/`),
-    })),
+    filename: `${slug}-confirmation-receipt-${date}.json`,
+    receipts,
+    ...sessionPayload(),
   });
 });
 
-app.post("/api/health/connect", (req, res) => {
-  try {
-    const slug = String(req.body?.slug || "");
-    const result = connectArticle(slug);
-    generateLlmsTxt();
-    res.json({ ok: true, ...result });
-  } catch (err: any) {
-    jsonError(res, 400, err?.message || "Connect failed");
-  }
+app.use(express.static(join(here, "public")));
+
+app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  fail(res, 500, err instanceof Error ? err.message : String(err));
 });
 
-app.post("/api/health/connect-all", (_req, res) => {
-  try {
-    const results = connectAll();
-    generateLlmsTxt();
-    res.json({ ok: true, results });
-  } catch (err: any) {
-    jsonError(res, 400, err?.message || "Connect all failed");
-  }
-});
-
-app.post("/api/health/propose-external", async (req, res) => {
-  try {
-    const slug = String(req.body?.slug || "");
-    const article = readArticle(slug);
-    if (!article || article.data.draft) {
-      return jsonError(res, 404, "Published article not found");
-    }
-    const result = await proposeExternalLinks(article);
-    res.json({ ok: true, slug, ...result });
-  } catch (err: any) {
-    jsonError(res, 400, err?.message || "Propose failed");
-  }
-});
-
-app.post("/api/health/propose-all", async (_req, res) => {
-  try {
-    const articles = readAllArticles().filter((row) => !row.data.draft);
-    const proposals = [];
-    const skipped: string[] = [];
-    for (const article of articles) {
-      const slots = Math.max(0, 3 - (article.data.externalLinks || []).length);
-      if (slots <= 0) continue;
-      const result = await proposeExternalLinks(article);
-      skipped.push(...result.skipped.map((reason) => `${article.slug}: ${reason}`));
-      if (result.candidates.length) {
-        proposals.push({
-          slug: article.slug,
-          title: article.data.title,
-          candidates: result.candidates,
-        });
-      }
-    }
-    res.json({ ok: true, proposals, skipped });
-  } catch (err: any) {
-    jsonError(res, 400, err?.message || "Propose all failed");
-  }
-});
-
-app.post("/api/health/add-external", (req, res) => {
-  try {
-    const slug = String(req.body?.slug || "");
-    const links = Array.isArray(req.body?.links) ? req.body.links : [];
-    const article = readArticle(slug);
-    if (!article) return jsonError(res, 404, "Article not found");
-    applyExternalLinks(article, links);
-    generateLlmsTxt();
-    res.json({ ok: true, slug });
-  } catch (err: any) {
-    jsonError(res, 400, err?.message || "Add external failed");
-  }
-});
-
-function scanMeta(article: StoredArticle) {
-  const titleOk = article.data.title.length >= 55 && article.data.title.length <= 60;
-  const descOk =
-    article.data.description.length >= 140 && article.data.description.length <= 160;
-  const canonical = article.data.canonical || absoluteUrl(`/articles/${article.slug}/`);
-  const canonicalOk = /^https?:\/\//i.test(canonical);
-  const h1Ok = !article.data.h1 || article.data.h1.length >= 20;
-  return {
-    ok: titleOk && descOk && canonicalOk && h1Ok,
-    titleOk,
-    descOk,
-    canonical,
-    canonicalOk,
-    ogPresent: true,
-    h1: article.data.h1 || article.data.title,
-    h1Ok,
-  };
-}
-
-function scanSchema(article: StoredArticle) {
-  const distFile = path.join(DIST_DIR, "articles", article.slug, "index.html");
-  if (!fs.existsSync(distFile)) {
-    return { ok: false, scanned: false, reason: "No built HTML in dist yet" };
-  }
-  const html = fs.readFileSync(distFile, "utf8");
-  const blocks = [...html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)];
-  const types: string[] = [];
-  let parseOk = true;
-  for (const block of blocks) {
-    try {
-      const json = JSON.parse(block[1]);
-      const t = json["@type"];
-      if (Array.isArray(t)) types.push(...t);
-      else if (t) types.push(t);
-    } catch {
-      parseOk = false;
-    }
-  }
-  const expect = [article.data.schemaType || "BlogPosting"];
-  if ((article.data.faqs || []).length) expect.push("FAQPage");
-  const hasExpected = expect.every((t) => types.includes(t));
-  return { ok: parseOk && hasExpected, scanned: true, types, parseOk, hasExpected };
-}
-
-function scanSitemap(article: StoredArticle) {
-  const indexPath = path.join(DIST_DIR, "sitemap-index.xml");
-  const sitemap0 = path.join(DIST_DIR, "sitemap-0.xml");
-  if (!fs.existsSync(indexPath) && !fs.existsSync(sitemap0)) {
-    return { ok: false, scanned: false, reason: "No sitemap in dist yet" };
-  }
-  const xml = [indexPath, sitemap0]
-    .filter((p) => fs.existsSync(p))
-    .map((p) => fs.readFileSync(p, "utf8"))
-    .join("\n");
-  const url = absoluteUrl(`/articles/${article.slug}/`);
-  const present = xml.includes(url) || xml.includes(`/articles/${article.slug}/`);
-  const lastmodMatch = xml.match(
-    new RegExp(
-      `<loc>${url.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}</loc>[\\s\\S]*?<lastmod>([^<]+)</lastmod>`
-    )
-  );
-  const lastmod = lastmodMatch?.[1] || null;
-  return { ok: present && Boolean(lastmod), scanned: true, present, lastmod };
-}
-
-app.post("/api/health/scan-meta", (req, res) => {
-  const article = readArticle(String(req.body?.slug || ""));
-  if (!article) return jsonError(res, 404, "Article not found");
-  res.json({ ok: true, result: scanMeta(article) });
-});
-
-app.post("/api/health/scan-schema", (req, res) => {
-  const article = readArticle(String(req.body?.slug || ""));
-  if (!article) return jsonError(res, 404, "Article not found");
-  res.json({ ok: true, result: scanSchema(article) });
-});
-
-app.post("/api/health/scan-sitemap", (req, res) => {
-  const article = readArticle(String(req.body?.slug || ""));
-  if (!article) return jsonError(res, 404, "Article not found");
-  res.json({ ok: true, result: scanSitemap(article) });
-});
-
-app.post("/api/health/scan-speed", async (req, res) => {
-  const url = String(req.body?.url || "");
-  const slug = String(req.body?.slug || "");
-  const target = url || (slug ? absoluteUrl(`/articles/${slug}/`) : "");
-  if (!target) return jsonError(res, 400, "url or slug required");
-  const result = await runPagespeedPanel({ siteUrl: target });
-  res.json({ ok: true, result, state: speedState(result) });
-});
-
-app.post("/api/updates/parse", upload.single("file"), (req, res) => {
-  try {
-    const raw = req.file
-      ? req.file.buffer.toString("utf8")
-      : String(req.body?.json || "");
-    const parsed = JSON.parse(raw);
-    const list = Array.isArray(parsed) ? parsed : null;
-    if (!list) return jsonError(res, 400, "JSON must be an array");
-    const rows = list.map((entry: any) => {
-      const slug = String(entry.slug || "").trim();
-      const article = slug ? readArticle(slug) : null;
-      const wts = article ? extractWts(article.body) : null;
-      return {
-        slug,
-        matched: Boolean(article),
-        newParagraph: String(entry.newParagraph || ""),
-        newUpdatedDate: String(entry.newUpdatedDate || ""),
-        newSources: Array.isArray(entry.newSources) ? entry.newSources : [],
-        currentParagraph: wts?.paragraph || "",
-        markerError:
-          article && (wts?.startCount !== 1 || wts?.endCount !== 1)
-            ? `markers start=${wts?.startCount} end=${wts?.endCount}`
-            : null,
-      };
-    });
-    res.json({ ok: true, rows });
-  } catch (err: any) {
-    jsonError(res, 400, err?.message || "Update parse failed");
-  }
-});
-
-app.post("/api/updates/confirm", (req, res) => {
-  try {
-    const slug = String(req.body?.slug || "");
-    const article = readArticle(slug);
-    if (!article) return jsonError(res, 404, `Unmatched slug "${slug}"`);
-    const paragraph = String(req.body?.newParagraph || "");
-    const newUpdatedDate = String(req.body?.newUpdatedDate || "");
-    const sources = Array.isArray(req.body?.newSources) ? req.body.newSources : [];
-    const body = replaceWtsParagraph(article.body, paragraph);
-    article.body = body;
-    article.data.updatedDate = newUpdatedDate || article.data.updatedDate;
-    writeArticleFile(article.slug, article.data, body);
-    if (sources.length) {
-      applyExternalLinks(
-        readArticle(slug)!,
-        sources.map((s: any) => ({
-          label: String(s.title || s.label || ""),
-          url: String(s.url || ""),
-        })),
-        newUpdatedDate
-      );
-    }
-    generateLlmsTxt();
-    res.json({
-      ok: true,
-      receipt: {
-        slug,
-        confirmedDate: newUpdatedDate,
-        confirmedAt: new Date().toISOString(),
-      },
-    });
-  } catch (err: any) {
-    jsonError(res, 400, err?.message || "Confirm failed");
-  }
-});
-
-app.post("/api/updates/confirm-all", (req, res) => {
-  const items = Array.isArray(req.body?.items) ? req.body.items : [];
-  const receipts = [];
-  const errors = [];
-  for (const item of items) {
-    try {
-      const slug = String(item.slug || "");
-      const article = readArticle(slug);
-      if (!article) {
-        errors.push({ slug, error: "unmatched" });
-        continue;
-      }
-      const body = replaceWtsParagraph(article.body, String(item.newParagraph || ""));
-      article.data.updatedDate = String(item.newUpdatedDate || article.data.updatedDate);
-      writeArticleFile(article.slug, article.data, body);
-      const sources = Array.isArray(item.newSources) ? item.newSources : [];
-      if (sources.length) {
-        applyExternalLinks(
-          readArticle(slug)!,
-          sources.map((s: any) => ({
-            label: String(s.title || s.label || ""),
-            url: String(s.url || ""),
-          })),
-          item.newUpdatedDate
-        );
-      }
-      receipts.push({
-        slug,
-        confirmedDate: String(item.newUpdatedDate || ""),
-        confirmedAt: new Date().toISOString(),
-      });
-    } catch (err: any) {
-      errors.push({ slug: item?.slug, error: err?.message || "failed" });
-    }
-  }
-  generateLlmsTxt();
-  res.json({ ok: true, receipts, errors });
-});
-
-app.post("/api/llms", (_req, res) => {
-  generateLlmsTxt();
-  res.json({ ok: true });
-});
-
-app.listen(CMS_PORT, () => {
-  console.log(`CMS running at http://localhost:${CMS_PORT}`);
+const port = 3737;
+app.listen(port, "127.0.0.1", () => {
+  console.log(`CMS on http://127.0.0.1:${port}`);
 });

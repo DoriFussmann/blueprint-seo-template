@@ -1,23 +1,22 @@
 ---
-interface Link {
+interface Source {
   label: string;
   url: string;
+  addedAt: string;
 }
-
 interface Props {
-  links?: Link[];
+  sources: Source[];
 }
-
-const { links = [] } = Astro.props;
+const { sources } = Astro.props;
 ---
 
-{links.length > 0 && (
-  <section class="my-10">
-    <h2 class="mb-4 text-xl">Sources</h2>
-    <ul class="list-disc space-y-2 pl-5">
-      {links.map((link) => (
+{sources.length > 0 && (
+  <section class="mt-12" aria-labelledby="sources-heading">
+    <h2 id="sources-heading" class="font-serif text-3xl mb-4">Sources</h2>
+    <ul class="list-disc ml-6">
+      {sources.map((source) => (
         <li>
-          <a href={link.url} target="_blank" rel="noopener noreferrer">{link.label}</a>
+          <a class="text-accent underline" href={source.url} rel="noopener" target="_blank">{source.label}</a>
         </li>
       ))}
     </ul>

@@ -1,69 +1,65 @@
-import fs from "node:fs";
-import path from "node:path";
-import type { ArticleFrontmatter } from "./schema.ts";
-import { serializeArticleMarkdown } from "./serialize.ts";
-import { articleFilePath, articleHeroRel, ARTICLE_ASSETS_DIR } from "./paths.ts";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { extname, join } from "node:path";
+import { applyExternalSignpost, applyInternalSignpost, trimExternalLinks } from "./applyLinks";
+import { ARTICLE_ASSETS, ARTICLES_DIR } from "./paths";
+import { serializeMarkdown } from "./serialize";
 
-export interface StagedFile {
-  buffer: Buffer;
-  originalName: string;
-  mime?: string;
+const PLACEHOLDER_RE = /replace|todo|placeholder/i;
+
+export const stagedHeroes = new Map<string, { buffer: Buffer; ext: string }>();
+
+export function imageRelPath(slug: string, ext: string): string {
+  const safe = ext.replace(/^\./, "").toLowerCase();
+  return `../../assets/articles/${slug}.${safe}`;
 }
 
-function extFrom(file: StagedFile): string {
-  const fromName = path.extname(file.originalName || "").toLowerCase();
-  if (fromName) return fromName;
-  if (file.mime === "image/jpeg") return ".jpg";
-  if (file.mime === "image/webp") return ".webp";
-  if (file.mime === "image/gif") return ".gif";
-  return ".png";
+export function heroIsValid(slug: string, imagePath: unknown): boolean {
+  if (stagedHeroes.has(slug)) return true;
+  if (typeof imagePath !== "string" || !imagePath) return false;
+  if (PLACEHOLDER_RE.test(imagePath)) return false;
+  const abs = join(ARTICLES_DIR, imagePath);
+  return existsSync(abs);
 }
 
-export function writeArticle(options: {
-  data: ArticleFrontmatter;
+export function writeArticle(opts: {
+  data: Record<string, unknown>;
   body: string;
-  hero?: StagedFile | null;
-  regenerateLlms?: boolean;
-}): { slug: string; path: string } {
-  const slug = String(options.data.slug || "").trim();
-  if (!slug) throw new Error("slug is required");
-  if (!options.data.author) {
-    throw new Error("author is required before writing to the site content directory");
+  slug: string;
+}): { path: string; changed: boolean } {
+  mkdirSync(ARTICLES_DIR, { recursive: true });
+  mkdirSync(ARTICLE_ASSETS, { recursive: true });
+
+  const staged = stagedHeroes.get(opts.slug);
+  if (staged) {
+    const ext = staged.ext.replace(/^\./, "").toLowerCase();
+    writeFileSync(join(ARTICLE_ASSETS, `${opts.slug}.${ext}`), staged.buffer);
+    opts.data.image = imageRelPath(opts.slug, ext);
+    stagedHeroes.delete(opts.slug);
+  } else if (!heroIsValid(opts.slug, opts.data.image)) {
+    throw new Error("A hero image must be staged this session or paired from the batch");
   }
 
-  const dest = articleFilePath(slug);
-  let imageRel = options.data.image || "";
-
-  if (options.hero) {
-    const ext = extFrom(options.hero);
-    const dir = path.join(ARTICLE_ASSETS_DIR, slug);
-    fs.mkdirSync(dir, { recursive: true });
-    const heroPath = path.join(dir, `hero${ext}`);
-    fs.writeFileSync(heroPath, options.hero.buffer);
-    imageRel = articleHeroRel(slug, ext);
+  if (Array.isArray(opts.data.externalLinks)) {
+    opts.data.externalLinks = trimExternalLinks(opts.data.externalLinks as { addedAt: string }[]);
   }
 
-  if (!imageRel) throw new Error("hero image is required");
+  let body = opts.body;
+  body = applyInternalSignpost(body, (opts.data.internalLinks as { slug: string; anchor: string }[]) || []);
+  body = applyExternalSignpost(
+    body,
+    (opts.data.externalLinks as { label: string; url: string }[]) || [],
+  );
 
-  const payload: Record<string, unknown> = {
-    ...options.data,
-    slug,
-    image: imageRel,
-    updatedDate: options.data.updatedDate || options.data.date,
-  };
-
-  fs.mkdirSync(path.dirname(dest), { recursive: true });
-  fs.writeFileSync(dest, serializeArticleMarkdown(payload, options.body), "utf8");
-  return { slug, path: dest };
+  const next = serializeMarkdown(opts.data, body);
+  const outPath = join(ARTICLES_DIR, `${opts.slug}.md`);
+  const prev = existsSync(outPath) ? readFileSync(outPath, "utf8") : null;
+  if (prev === next) return { path: outPath, changed: false };
+  writeFileSync(outPath, next, "utf8");
+  return { path: outPath, changed: true };
 }
 
-export function writeArticleFile(slug: string, data: ArticleFrontmatter, body: string) {
-  const dest = articleFilePath(slug);
-  fs.writeFileSync(dest, serializeArticleMarkdown({ ...data, slug }, body), "utf8");
-  return dest;
-}
-
-export function deleteArticle(slug: string) {
-  const dest = articleFilePath(slug);
-  if (fs.existsSync(dest)) fs.unlinkSync(dest);
+export function heroExtFromName(filename: string): string {
+  const ext = extname(filename).toLowerCase();
+  if ([".png", ".jpg", ".jpeg", ".webp"].includes(ext)) return ext === ".jpeg" ? ".jpg" : ext;
+  return ".png";
 }

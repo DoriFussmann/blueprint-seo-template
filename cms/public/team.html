@@ -2,38 +2,57 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Team</title>
   <link rel="stylesheet" href="/styles.css" />
 </head>
-<body data-page="team">
+<body>
   <div class="layout">
-    <nav class="side">
-      <h1>Local CMS</h1>
+    <nav>
+      <h1>CMS</h1>
       <a href="/articles.html">Articles</a>
       <a href="/add-article.html">Add Article</a>
       <a href="/articles-health.html">Articles Health</a>
       <a href="/articles-update.html">Articles Update</a>
-      <a href="/team.html" class="active">Team</a>
+      <a class="active" href="/team.html">Team</a>
       <a href="/dashboard.html">Dashboard</a>
     </nav>
     <main>
-      <h1>Team</h1>
-      <div id="team-list"></div>
-      <h2>Add member</h2>
-      <form id="team-form" class="card">
+      <div class="banner" data-session-banner></div>
+      <h2>Team</h2>
+      <div id="list"></div>
+      <h3>Create / edit</h3>
+      <form id="form">
         <label>Name <input name="name" required /></label>
-        <label>Slug <input name="slug" required /></label>
         <label>Role <input name="role" required /></label>
-        <label>Bio <textarea name="bio" rows="4" required></textarea></label>
-        <label>Credentials <input name="credentials" /></label>
-        <label>sameAs URLs (one per line) <textarea name="sameAs" rows="3"></textarea></label>
-        <label>Photo <input type="file" name="photo" accept="image/*" required /></label>
-        <button type="submit" class="primary">Save member</button>
-        <p id="team-status"></p>
+        <label>Bio <textarea name="bio" rows="8" required></textarea></label>
+        <label>Credentials (one per line) <textarea name="credentials" rows="6"></textarea></label>
+        <label>knowsAbout (comma or line) <textarea name="knowsAbout" rows="4"></textarea></label>
+        <label>sameAs URLs (one per line) <textarea name="sameAs" rows="4"></textarea></label>
+        <label>Email <input name="email" type="email" /></label>
+        <label>Photo (jpg) <input name="photo" type="file" accept=".jpg,.jpeg,.png" /></label>
+        <button type="submit">Save member</button>
       </form>
+      <p id="out"></p>
     </main>
   </div>
-  <script src="/app.js"></script>
+  <script type="module">
+    import { api } from "/app.js";
+    async function load() {
+      const data = await api("/api/team");
+      document.getElementById("list").innerHTML = data.team.map((t) => `<div class="row"><strong>${t.data.name}</strong> — ${t.data.role} <span class="muted">${t.slug}</span></div>`).join("");
+    }
+    document.getElementById("form").onsubmit = async (e) => {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      try {
+        const data = await api("/api/team", { method: "POST", body: fd });
+        document.getElementById("out").innerHTML = `<span class="ok">Saved ${data.slug}</span>`;
+        await load();
+      } catch (err) {
+        document.getElementById("out").innerHTML = `<span class="err">${err.message}</span>`;
+      }
+    };
+    load();
+  </script>
 </body>
 </html>

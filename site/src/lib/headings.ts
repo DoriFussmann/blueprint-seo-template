@@ -1,27 +1,24 @@
-import GithubSlugger from "github-slugger";
+export interface Heading {
+  depth: number;
+  slug: string;
+  text: string;
+}
 
-export type Heading = { depth: number; text: string; id: string };
+export function slugify(text: string): string {
+  return text
+    .toLowerCase()
+    .trim()
+    .replace(/[^\w\s-]/g, "")
+    .replace(/\s+/g, "-");
+}
 
 export function extractHeadings(markdown: string): Heading[] {
-  const slugger = new GithubSlugger();
   const headings: Heading[] = [];
-  const lines = String(markdown || "").split(/\r?\n/);
-  let inFence = false;
-  for (const line of lines) {
-    if (/^```/.test(line)) {
-      inFence = !inFence;
-      continue;
-    }
-    if (inFence) continue;
+  for (const line of markdown.split(/\n/)) {
     const match = /^(#{2,3})\s+(.+?)\s*$/.exec(line);
     if (!match) continue;
-    const text = match[2].replace(/[#*_`]/g, "").trim();
-    if (!text) continue;
-    headings.push({
-      depth: match[1].length,
-      text,
-      id: slugger.slug(text),
-    });
+    const text = match[2].replace(/\[([^\]]+)\]\([^)]+\)/g, "$1").replace(/[*_`]/g, "");
+    headings.push({ depth: match[1].length, slug: slugify(text), text });
   }
   return headings;
 }

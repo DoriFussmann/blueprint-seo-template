@@ -1,20 +1,23 @@
 ---
-import type { Heading } from "../lib/headings";
-
+interface Heading {
+  depth: number;
+  slug: string;
+  text: string;
+}
 interface Props {
   headings: Heading[];
 }
-
 const { headings } = Astro.props;
+const toc = headings.filter((h) => h.depth === 2 || h.depth === 3);
 ---
 
-{headings.length > 0 && (
-  <nav aria-label="Table of contents" class="my-8 border border-border bg-surface p-4">
-    <h2 class="mb-3 text-lg">On this page</h2>
-    <ol class="space-y-2">
-      {headings.map((heading) => (
-        <li class={heading.depth === 3 ? "pl-4" : ""}>
-          <a href={`#${heading.id}`} class="no-underline">{heading.text}</a>
+{toc.length > 0 && (
+  <nav aria-label="Table of contents" class="mb-10 border border-border bg-surface p-4">
+    <p class="font-sans text-sm uppercase tracking-wide text-muted mb-2">On this page</p>
+    <ol class="space-y-1">
+      {toc.map((h) => (
+        <li class={h.depth === 3 ? "ml-4" : ""}>
+          <a class="text-accent underline underline-offset-2 py-2 inline-block" href={`#${h.slug}`}>{h.text}</a>
         </li>
       ))}
     </ol>

@@ -1,21 +1,18 @@
 <button
   type="button"
-  class="tap-target fixed bottom-6 right-6 hidden border border-border bg-surface px-4 shadow-sm"
-  data-back-to-top
-  aria-label="Back to top"
+  id="back-to-top"
+  class="tap-target fixed bottom-6 right-6 hidden bg-accent text-bg px-4 py-3 text-sm"
 >
   Back to top
 </button>
-
 <script is:inline>
   (function () {
-    var btn = document.querySelector("[data-back-to-top]");
+    var btn = document.getElementById("back-to-top");
     if (!btn) return;
-    function onScroll() {
-      if (window.scrollY > 400) btn.classList.remove("hidden");
+    window.addEventListener("scroll", function () {
+      if (window.scrollY > 600) btn.classList.remove("hidden");
       else btn.classList.add("hidden");
-    }
-    window.addEventListener("scroll", onScroll, { passive: true });
+    });
     btn.addEventListener("click", function () {
       window.scrollTo({ top: 0, behavior: "smooth" });
     });

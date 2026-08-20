@@ -1,23 +1,27 @@
 import rss from "@astrojs/rss";
 import { getCollection } from "astro:content";
-import { SITE_NAME } from "../config/site";
-import { absoluteUrl } from "../lib/url";
+import MarkdownIt from "markdown-it";
+import type { APIContext } from "astro";
+import { ARTICLES_BASE, SITE_NAME, SITE_TAGLINE, SITE_URL } from "../config/site";
+import { abs } from "../lib/url";
 
-export async function GET() {
-  const articles = (await getCollection("articles"))
-    .filter((entry) => !entry.data.draft)
-    .sort((a, b) => +b.data.date - +a.data.date);
+const parser = new MarkdownIt();
 
+export async function GET(context: APIContext) {
+  const articles = (await getCollection("articles", ({ data }) => data.draft !== true)).sort(
+    (a, b) => (b.data.updatedDate || b.data.date).localeCompare(a.data.updatedDate || a.data.date),
+  );
   return rss({
     title: SITE_NAME,
-    description: `Articles from ${SITE_NAME}`,
-    site: absoluteUrl("/"),
+    description: SITE_TAGLINE,
+    site: context.site ?? SITE_URL,
     trailingSlash: true,
-    items: articles.map((entry) => ({
-      title: entry.data.title,
-      description: entry.data.description,
-      pubDate: entry.data.date,
-      link: `/articles/${entry.data.slug}/`,
+    items: articles.map((article) => ({
+      title: article.data.title,
+      description: article.data.description,
+      pubDate: new Date(`${article.data.date}T00:00:00.000Z`),
+      link: `/${ARTICLES_BASE}/${article.id}/`,
+      content: parser.render(article.body),
     })),
   });
 }

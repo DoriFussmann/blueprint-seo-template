@@ -1,48 +1,50 @@
 ---
-title: How to Improve Core Web Vitals With a Repeatable Process
-description: "A practical how-to for improving Core Web Vitals: capture field data, isolate the worst template, ship one fix at a time, then re-measure results."
+title: "Improve Core Web Vitals: A Practical How-To Guide, 2026"
+description: Practical steps to improve LCP, INP, and CLS on article templates, including image delivery, script scheduling, and layout reservations that survive traffic.
 slug: improve-core-web-vitals-howto
-date: 2026-08-14
-updatedDate: 2026-08-14
+date: 2026-08-16
+updatedDate: 2026-08-16
 author: null
-category: technical seo
+category: "Technical SEO"
 pillarKeyword: technical seo
 supportingKeyword: core web vitals
 articleType: howto
 targetKeyword: improve core web vitals
 tags:
-  - technical-seo
-  - core-web-vitals
-  - indexation
-  - performance
-imageAlt: Checklist for diagnosing and fixing Core Web Vitals issues
+  - core web vitals
+  - lcp
+  - images
+  - javascript
+  - cls
+imageAlt: Developer checklist next to a 16:9 article hero image with reserved height
 keywords:
-  - technical seo
-draft: false
+  - improve core web vitals
+  - howto
+  - "Technical SEO"
+draft: true
 internalLinks: []
 externalLinks: []
-faqs:
-  - question: "What is this seed article for?"
-    answer: It proves the CMS batch-upload and Connect flows in the template repo.
-  - question: "Should this ship on a real domain?"
-    answer: No. Set draft true after verification and replace it at Site Activation.
+faqs: []
 ---
+# Improve Core Web Vitals: A Practical How-To Guide, 2026
 
-This seed article exists to prove the CMS batch-upload and internal-link pipeline. Replace it at Site Activation.
+This how-to is the sibling of the Core Web Vitals guide. It assumes you already know what LCP, INP, and CLS measure and walks through the template changes that usually move field data.
 
-## Capture the real user data
+## Reserve space and preload the hero
 
-Keep the primary topic on improve core web vitals. Explain the problem in plain language, then the mechanism, then the check.
+Give the hero an explicit width and height, keep the aspect ratio in CSS, and preload the actual file the first viewport uses. Do not swap a tiny placeholder for a heavier crop after hydration.
 
-## Isolate the template
+## Schedule scripts after the first paint
 
-Use the same vocabulary a practitioner would search for. Do not invent a client brand. Cite the measurement method before the tactic.
-
-## Ship and re-measure
-
-Close with a verification step so the reader can tell whether the change worked.
+Defer non-critical JavaScript, break long tasks, and keep third-party tags off the critical path. INP regressions usually come from a cheap-looking widget that does expensive work on every tap.
 
 ## Where Things Stand
 <!-- WHERE-THINGS-STAND:START -->
-As of this template seed, Core Web Vitals remain a ranking consideration and a user-experience diagnostic. Teams should treat field data as the source of truth and lab data as a debugging aid, not the other way around.
+As of August 2026, the highest-leverage article-template work is still hero preload, font-display swap, reserved media boxes, and fewer long tasks on first interaction.
 <!-- WHERE-THINGS-STAND:END -->
+
+## Key Takeaways
+
+- Width, height, and aspect-ratio on heroes prevent CLS and help LCP.
+- Field INP is a long-task problem more often than a network problem.
+- Ship the how-to changes on one template, then reuse the pattern.

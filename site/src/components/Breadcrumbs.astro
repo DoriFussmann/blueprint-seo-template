@@ -1,31 +1,25 @@
 ---
-import { pagePath } from "../lib/url";
-
-interface Item {
+interface Crumb {
   name: string;
-  path: string;
+  href: string;
 }
-
 interface Props {
-  items: Item[];
+  crumbs: Crumb[];
 }
-
-const { items } = Astro.props;
+const { crumbs } = Astro.props;
 ---
 
-{items.length > 0 && (
-  <nav aria-label="Breadcrumb" class="my-6 text-sm">
-    <ol class="flex flex-wrap items-center gap-2">
-      {items.map((item, i) => (
-        <li class="flex items-center gap-2">
-          {i > 0 && <span aria-hidden="true">/</span>}
-          {i === items.length - 1 ? (
-            <span aria-current="page">{item.name}</span>
-          ) : (
-            <a href={pagePath(item.path)} class="no-underline">{item.name}</a>
-          )}
-        </li>
-      ))}
-    </ol>
-  </nav>
-)}
+<nav aria-label="Breadcrumb" class="mb-6">
+  <ol class="flex flex-wrap gap-2 text-sm text-muted">
+    {crumbs.map((crumb, i) => (
+      <li class="inline-flex items-center gap-2">
+        {i > 0 && <span aria-hidden="true">/</span>}
+        {i === crumbs.length - 1 ? (
+          <span aria-current="page">{crumb.name}</span>
+        ) : (
+          <a class="underline hover:text-accent py-2" href={new URL(crumb.href).pathname}>{crumb.name}</a>
+        )}
+      </li>
+    ))}
+  </ol>
+</nav>

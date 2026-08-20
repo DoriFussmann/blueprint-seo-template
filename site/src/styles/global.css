@@ -1,55 +1,93 @@
+@import "@fontsource-variable/inter";
+@import "@fontsource-variable/source-serif-4";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-@layer base {
-  html {
-    scroll-behavior: smooth;
-  }
-
-  body {
-    @apply bg-background font-body text-base text-body antialiased;
-  }
-
-  h1,
-  h2,
-  h3,
-  h4 {
-    @apply font-heading font-semibold text-heading;
-  }
-
-  a {
-    @apply text-accent underline-offset-2;
-  }
-
-  a:hover {
-    @apply underline;
-  }
-
-  :focus-visible {
-    @apply outline outline-2 outline-offset-2 outline-accent;
-  }
-
-  img {
-    @apply max-w-full h-auto;
-  }
+:root {
+  --color-bg: #fafaf7;
+  --color-fg: #1c1917;
+  --color-accent: #1d4e89;
+  --color-accent-hover: #163a66;
+  --color-highlight: #c4a35a;
+  --color-muted: #57534e;
+  --color-border: #e7e5e4;
+  --color-surface: #ffffff;
+  --color-focus: #1d4e89;
 }
 
-@layer components {
-  .page-wrap {
-    @apply mx-auto w-full max-w-container px-4 sm:px-6 lg:px-8;
-  }
+html {
+  scroll-behavior: smooth;
+}
 
-  .hero-frame {
-    @apply aspect-video w-full overflow-hidden bg-border;
-  }
+body {
+  @apply bg-bg text-fg font-sans text-lg antialiased;
+}
 
-  .hero-frame img,
-  .hero-frame picture img {
-    @apply h-full w-full object-cover;
-  }
+:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 2px;
+}
 
-  .tap-target {
-    @apply inline-flex min-h-[44px] min-w-[44px] items-center justify-center;
-  }
+.skip-link {
+  @apply sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:bg-surface focus:px-4 focus:py-3;
+}
+
+.container-page {
+  @apply mx-auto w-full max-w-container px-4 sm:px-6 lg:px-8;
+}
+
+.prose-article h2 {
+  @apply font-serif text-3xl mt-12 mb-4;
+}
+
+.prose-article h3 {
+  @apply font-serif text-2xl mt-8 mb-3;
+}
+
+.prose-article p {
+  @apply mb-4 leading-relaxed;
+}
+
+.prose-article a {
+  @apply text-accent underline underline-offset-2 hover:text-accent-hover;
+}
+
+.prose-article ul,
+.prose-article ol {
+  @apply mb-4 ml-6;
+}
+
+.prose-article ul {
+  @apply list-disc;
+}
+
+.prose-article ol {
+  @apply list-decimal;
+}
+
+.prose-article li {
+  @apply mb-1;
+}
+
+.hero-frame {
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  background: var(--color-border);
+}
+
+.hero-frame img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.tap-target {
+  min-width: 44px;
+  min-height: 44px;
+}
+
+.nav-link {
+  @apply inline-flex items-center px-3 py-3 text-base text-fg hover:text-accent;
 }

@@ -1,134 +1,121 @@
-import type { LinkItem } from "./schema.ts";
-import { readAllArticles, type StoredArticle } from "./readContent.ts";
-import { applyInternalLinks } from "./applyLinks.ts";
-import { pagePath } from "../../site/src/lib/url.ts";
+import { ARTICLES_BASE } from "../../site/src/config/site.ts";
+import { publishedArticles, type ArticleRecord } from "./readContent";
+import { writeArticle } from "./writeArticle";
 
-export interface RequiredLink {
-  slug: string;
-  title: string;
-  url: string;
-  reason: string;
+function norm(value: unknown): string {
+  return String(value ?? "").trim().toLowerCase();
 }
 
-function published(): StoredArticle[] {
-  return readAllArticles().filter((row) => !row.data.draft);
+function isPillar(article: ArticleRecord): boolean {
+  return norm(article.data.articleType) === "comprehensive" && !article.data.supportingKeyword;
 }
 
-function isPillar(row: StoredArticle): boolean {
-  return (
-    row.data.articleType === "comprehensive" && !row.data.supportingKeyword
-  );
+function sortKey(article: ArticleRecord): string {
+  return String(article.data.updatedDate || article.data.date || "");
 }
 
-function articleUrl(slug: string): string {
-  return pagePath(`/articles/${slug}`);
+function anchorFor(target: ArticleRecord): string {
+  const kw = String(target.data.targetKeyword || "").trim();
+  return kw || String(target.data.title || target.slug);
 }
 
-export function requiredInternalLinks(article: StoredArticle): RequiredLink[] {
-  if (article.data.draft) return [];
-  const others = published().filter((row) => row.slug !== article.slug);
-  const required: RequiredLink[] = [];
-  const seen = new Set<string>();
-  const add = (row: StoredArticle, reason: string) => {
-    if (seen.has(row.slug)) return;
-    seen.add(row.slug);
-    required.push({
-      slug: row.slug,
-      title: row.data.title,
-      url: articleUrl(row.slug),
-      reason,
+function addLink(
+  map: Map<string, Map<string, string>>,
+  from: string,
+  to: ArticleRecord,
+) {
+  if (from === to.slug) return;
+  if (!map.has(from)) map.set(from, new Map());
+  map.get(from)!.set(to.slug, anchorFor(to));
+}
+
+export function planInternalLinks(articles = publishedArticles()) {
+  const desired = new Map<string, Map<string, string>>();
+  const pillars = articles.filter(isPillar);
+
+  for (const pillar of pillars) {
+    const pk = norm(pillar.data.pillarKeyword);
+    for (const other of articles) {
+      if (norm(other.data.pillarKeyword) === pk) addLink(desired, pillar.slug, other);
+    }
+  }
+
+  for (const article of articles) {
+    if (isPillar(article)) continue;
+    const pk = norm(article.data.pillarKeyword);
+    const pillar = pillars.find((p) => norm(p.data.pillarKeyword) === pk);
+    if (pillar) addLink(desired, article.slug, pillar);
+  }
+
+  const siblingGroups = new Map<string, ArticleRecord[]>();
+  for (const article of articles) {
+    const sk = norm(article.data.supportingKeyword);
+    const pk = norm(article.data.pillarKeyword);
+    if (!sk || !pk) continue;
+    const key = `${pk}::${sk}`;
+    const list = siblingGroups.get(key) ?? [];
+    list.push(article);
+    siblingGroups.set(key, list);
+  }
+  for (const group of siblingGroups.values()) {
+    for (const a of group) {
+      for (const b of group) addLink(desired, a.slug, b);
+    }
+  }
+
+  if (pillars.length <= 6) {
+    for (const a of pillars) {
+      for (const b of pillars) addLink(desired, a.slug, b);
+    }
+  } else {
+    for (const a of pillars) {
+      const others = pillars
+        .filter((p) => p.slug !== a.slug)
+        .sort((x, y) => sortKey(y).localeCompare(sortKey(x)))
+        .slice(0, 5);
+      for (const b of others) addLink(desired, a.slug, b);
+    }
+  }
+
+  return desired;
+}
+
+export async function connectInternalLinks(): Promise<{
+  updated: string[];
+  skipped: string[];
+}> {
+  const articles = publishedArticles();
+  const bySlug = new Map(articles.map((a) => [a.slug, a]));
+  const desired = planInternalLinks(articles);
+  const updated: string[] = [];
+  const skipped: string[] = [];
+
+  for (const article of articles) {
+    const want = desired.get(article.slug) ?? new Map();
+    const existing = Array.isArray(article.data.internalLinks)
+      ? (article.data.internalLinks as { slug: string; anchor: string }[])
+      : [];
+    const have = new Set(existing.map((l) => l.slug));
+    const delta = [...want.entries()].filter(([slug]) => !have.has(slug) && bySlug.has(slug));
+    if (!delta.length && existing.length === want.size && existing.every((l) => want.has(l.slug))) {
+      skipped.push(article.slug);
+      continue;
+    }
+    const merged = [...existing];
+    for (const [slug, anchor] of want) {
+      if (!merged.some((l) => l.slug === slug)) merged.push({ slug, anchor });
+    }
+    const next = merged.filter((l) => l.slug === article.slug ? false : true);
+    const result = writeArticle({
+      data: { ...article.data, internalLinks: next },
+      body: article.body,
+      slug: article.slug,
     });
-  };
-
-  if (isPillar(article) && article.data.pillarKeyword) {
-    const clusters = new Map<string, StoredArticle[]>();
-    for (const row of others) {
-      if (row.data.pillarKeyword !== article.data.pillarKeyword) continue;
-      const cluster = row.data.supportingKeyword;
-      if (!cluster) continue;
-      const list = clusters.get(cluster) || [];
-      list.push(row);
-      clusters.set(cluster, list);
-    }
-    for (const [cluster, rows] of clusters) {
-      const comprehensive = rows.find((row) => row.data.articleType === "comprehensive");
-      if (comprehensive) {
-        add(
-          comprehensive,
-          `cluster comprehensive for supporting keyword "${cluster}"`
-        );
-      }
-    }
+    if (result.changed) updated.push(article.slug);
+    else skipped.push(article.slug);
   }
 
-  if (article.data.supportingKeyword) {
-    const pillar = others.find(
-      (row) =>
-        isPillar(row) && row.data.pillarKeyword === article.data.pillarKeyword
-    );
-    if (pillar) add(pillar, "pillar article for this supporting keyword");
-    for (const row of others) {
-      if (row.data.supportingKeyword === article.data.supportingKeyword) {
-        add(row, "cluster sibling");
-      }
-    }
-  }
-
-  return required;
+  return { updated, skipped };
 }
 
-export function missingInternalLinks(article: StoredArticle): RequiredLink[] {
-  const have = new Set(
-    (article.data.internalLinks || []).map((link) => normalizeUrl(link.url))
-  );
-  return requiredInternalLinks(article).filter(
-    (req) => !have.has(normalizeUrl(req.url)) && !have.has(req.slug)
-  );
-}
-
-function normalizeUrl(url: string): string {
-  return String(url || "")
-    .replace(/^https?:\/\/[^/]+/i, "")
-    .replace(/\/+$/, "")
-    .toLowerCase();
-}
-
-export function connectArticle(slug: string): {
-  slug: string;
-  added: RequiredLink[];
-  internalLinks: LinkItem[];
-} {
-  const article = published().find((row) => row.slug === slug);
-  if (!article) throw new Error(`Published article "${slug}" not found`);
-  const missing = missingInternalLinks(article);
-  const next: LinkItem[] = [
-    ...(article.data.internalLinks || []),
-    ...missing.map((row) => ({ label: row.title, url: row.url })),
-  ];
-  const unique: LinkItem[] = [];
-  const seen = new Set<string>();
-  for (const link of next) {
-    const key = normalizeUrl(link.url);
-    if (seen.has(key)) continue;
-    seen.add(key);
-    unique.push(link);
-  }
-  applyInternalLinks(article, unique);
-  return { slug, added: missing, internalLinks: unique };
-}
-
-export function connectAll(): Array<ReturnType<typeof connectArticle>> {
-  const results = [];
-  for (const row of published()) {
-    results.push(connectArticle(row.slug));
-  }
-  return results;
-}
-
-export function linkHealth(article: StoredArticle): "green" | "orange" | "red" {
-  const missing = missingInternalLinks(article);
-  const ext = (article.data.externalLinks || []).length;
-  if (ext <= 1 || missing.length > 0) return "red";
-  if (ext >= 3 && missing.length === 0) return "green";
-  return "orange";
-}
+export { ARTICLES_BASE };

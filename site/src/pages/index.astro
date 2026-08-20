@@ -1,70 +1,115 @@
 ---
 import { getCollection } from "astro:content";
-import { Image } from "astro:assets";
 import BaseLayout from "../layouts/BaseLayout.astro";
-import { SITE_NAME } from "../config/site";
-import { pagePath } from "../lib/url";
-import { formatDisplayDate } from "../lib/dates";
+import { ARTICLES_BASE, SITE_NAME, SITE_TAGLINE } from "../config/site";
+import { formatDate } from "../lib/formatDate";
+import { abs } from "../lib/url";
+import { faqPageNode, orgNode, websiteNode } from "../lib/jsonld";
 
-const services = (await getCollection("services")).sort(
-  (a, b) => a.data.order - b.data.order
+const articles = (await getCollection("articles", ({ data }) => data.draft !== true)).sort(
+  (a, b) => (b.data.updatedDate || b.data.date).localeCompare(a.data.updatedDate || a.data.date),
 );
+const services = (await getCollection("services")).sort((a, b) => a.data.order - b.data.order);
+const team = await getCollection("team");
+const pillarA = articles.find(
+  (a) => a.data.articleType === "comprehensive" && !a.data.supportingKeyword,
+);
+const latest = articles.slice(0, 3);
 
-const latest = (await getCollection("articles"))
-  .filter((entry) => !entry.data.draft)
-  .sort((a, b) => +b.data.date - +a.data.date)
-  .slice(0, 5);
-
-const title = `${SITE_NAME}`;
+const title = `${SITE_NAME} — ${SITE_TAGLINE}`;
 const description =
-  "Template homepage chrome. Replace this sentence at Site Activation with the real positioning line.";
+  "A reusable publication system for original research, technical guides, and operator-facing explainers built to be crawled, cited, and kept current.";
+const faqs = [
+  {
+    question: "What is this site for?",
+    answer: "This is a placeholder homepage for the reusable SEO and GEO template. Replace this copy at Site Activation.",
+  },
+  {
+    question: "Where should new articles live?",
+    answer: "Published articles are listed under Articles. Each piece is a markdown file with structured frontmatter.",
+  },
+];
+const pageUrl = abs("/");
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@graph": [orgNode(), websiteNode(), faqPageNode(faqs, pageUrl)],
+};
 ---
 
-<BaseLayout title={title} description={description} canonicalPath="/">
-  <section class="page-wrap py-16 lg:py-24">
-    <h1 class="max-w-3xl text-4xl">{SITE_NAME}</h1>
-    <p class="mt-6 max-w-3xl text-lg">
-      Template homepage chrome. Replace this sentence at Site Activation with the real
-      positioning line.
-    </p>
+<BaseLayout title={title} description={description} canonicalPath="/" jsonLd={jsonLd}>
+  <section class="border-b border-border bg-surface">
+    <div class="container-page py-16">
+      <p class="text-sm uppercase tracking-wide text-highlight mb-3">Publication</p>
+      <h1 class="font-serif text-4xl mb-4">{SITE_NAME}</h1>
+      <p class="text-xl text-muted max-w-3xl">{SITE_TAGLINE}. Original guides and research notes, written to be maintained.</p>
+    </div>
+  </section>
+
+  <section class="container-page py-12" aria-labelledby="latest-heading">
+    <h2 id="latest-heading" class="font-serif text-3xl mb-6">Latest articles</h2>
+    {pillarA && (
+      <p class="mb-6">
+        Start with <a class="text-accent underline" href={`/${ARTICLES_BASE}/${pillarA.id}/`}>{pillarA.data.title}</a>
+        {latest[1] && (
+          <>
+            {" "}and then read <a class="text-accent underline" href={`/${ARTICLES_BASE}/${latest[1].id}/`}>{latest[1].data.title}</a>.
+          </>
+        )}
+      </p>
+    )}
+    <ul class="grid gap-8 md:grid-cols-3">
+      {latest.map((article) => (
+        <li>
+          <p class="text-sm text-muted">{formatDate(article.data.updatedDate || article.data.date)}</p>
+          <h3 class="font-serif text-xl mb-2">
+            <a class="hover:text-accent" href={`/${ARTICLES_BASE}/${article.id}/`}>{article.data.title}</a>
+          </h3>
+          <p>{article.data.description}</p>
+        </li>
+      ))}
+    </ul>
+    <p class="mt-6"><a class="text-accent underline" href={`/${ARTICLES_BASE}/`}>All articles</a></p>
   </section>
 
   {services.length > 0 && (
-    <section class="page-wrap pb-16" aria-labelledby="services-heading">
-      <h2 id="services-heading" class="mb-8 text-2xl">Services</h2>
-      <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+    <section class="container-page py-12" aria-labelledby="services-heading">
+      <h2 id="services-heading" class="font-serif text-3xl mb-6">Services</h2>
+      <ul class="grid gap-8 md:grid-cols-2">
         {services.map((service) => (
-          <article class="border border-border bg-surface p-6">
-            <h3 class="text-xl">{service.data.title}</h3>
-            <p class="mt-3">{service.data.summary}</p>
-          </article>
+          <li class="border border-border p-6 bg-surface">
+            <h3 class="font-serif text-2xl mb-2">
+              <a class="hover:text-accent" href={`/services/${service.id}/`}>{service.data.title}</a>
+            </h3>
+            <p>{service.data.description}</p>
+          </li>
         ))}
-      </div>
+      </ul>
     </section>
   )}
 
-  {latest.length > 0 && (
-    <section class="page-wrap pb-16" aria-labelledby="latest-heading">
-      <h2 id="latest-heading" class="mb-8 text-2xl">Latest articles</h2>
-      <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {latest.map((article) => (
-          <article>
-            <a href={pagePath(`/articles/${article.data.slug}`)} class="no-underline">
-              <div class="hero-frame mb-3">
-                <Image
-                  src={article.data.image}
-                  alt={article.data.imageAlt}
-                  width={640}
-                  height={360}
-                  loading="lazy"
-                />
-              </div>
-              <h3 class="text-xl">{article.data.title}</h3>
-              <p class="mt-2 text-sm text-muted">{formatDisplayDate(article.data.date)}</p>
-            </a>
-          </article>
+  {team.length > 0 && (
+    <section class="container-page py-12" aria-labelledby="team-heading">
+      <h2 id="team-heading" class="font-serif text-3xl mb-6">Team</h2>
+      <ul class="grid gap-6 md:grid-cols-2">
+        {team.map((member) => (
+          <li>
+            <h3 class="font-serif text-xl">
+              <a class="hover:text-accent" href={`/team/${member.id}/`}>{member.data.name}</a>
+            </h3>
+            <p class="text-muted">{member.data.role}</p>
+          </li>
         ))}
-      </div>
+      </ul>
     </section>
   )}
+
+  <section class="container-page py-12" aria-labelledby="home-faq-heading">
+    <h2 id="home-faq-heading" class="font-serif text-3xl mb-4">Frequently asked questions</h2>
+    {faqs.map((faq) => (
+      <details class="border-b border-border py-3">
+        <summary class="cursor-pointer py-2 tap-target font-medium">{faq.question}</summary>
+        <p class="mt-2 text-muted">{faq.answer}</p>
+      </details>
+    ))}
+  </section>
 </BaseLayout>

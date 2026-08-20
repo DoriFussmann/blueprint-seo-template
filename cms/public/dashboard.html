@@ -2,39 +2,44 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Dashboard</title>
   <link rel="stylesheet" href="/styles.css" />
 </head>
-<body data-page="dashboard">
+<body>
   <div class="layout">
-    <nav class="side">
-      <h1>Local CMS</h1>
+    <nav>
+      <h1>CMS</h1>
       <a href="/articles.html">Articles</a>
       <a href="/add-article.html">Add Article</a>
       <a href="/articles-health.html">Articles Health</a>
       <a href="/articles-update.html">Articles Update</a>
       <a href="/team.html">Team</a>
-      <a href="/dashboard.html" class="active">Dashboard</a>
+      <a class="active" href="/dashboard.html">Dashboard</a>
     </nav>
     <main>
-      <h1>Dashboard</h1>
+      <div class="banner" data-session-banner></div>
+      <h2>Dashboard</h2>
+      <p class="muted">Read-only. Max upload 10MB per file on write screens.</p>
       <table>
         <thead>
           <tr>
-            <th>Title</th>
-            <th>Slug</th>
-            <th>Draft</th>
-            <th>Internal</th>
-            <th>External</th>
-            <th>FAQs</th>
-            <th>Updated</th>
+            <th>Title</th><th>Slug</th><th>Author</th><th>Pillar</th><th>Supporting</th>
+            <th>Type</th><th>Date</th><th>Updated</th><th>Draft</th><th>In</th><th>Ext</th>
           </tr>
         </thead>
-        <tbody id="dash-body"></tbody>
+        <tbody id="tb"></tbody>
       </table>
     </main>
   </div>
-  <script src="/app.js"></script>
+  <script type="module">
+    import { api } from "/app.js";
+    const data = await api("/api/articles");
+    document.getElementById("tb").innerHTML = data.articles.map((a) => `<tr>
+      <td>${a.title}</td><td>${a.slug}</td><td>${a.author}</td>
+      <td>${a.pillarKeyword || ""}</td><td>${a.supportingKeyword || ""}</td>
+      <td>${a.articleType || ""}</td><td>${a.date || ""}</td><td>${a.updatedDate || ""}</td>
+      <td>${a.draft ? "yes" : ""}</td><td>${a.internalCount}</td><td>${a.externalCount}</td>
+    </tr>`).join("");
+  </script>
 </body>
 </html>

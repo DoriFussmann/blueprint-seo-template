@@ -2,33 +2,95 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Articles Update</title>
   <link rel="stylesheet" href="/styles.css" />
 </head>
-<body data-page="update">
+<body>
   <div class="layout">
-    <nav class="side">
-      <h1>Local CMS</h1>
+    <nav>
+      <h1>CMS</h1>
       <a href="/articles.html">Articles</a>
       <a href="/add-article.html">Add Article</a>
       <a href="/articles-health.html">Articles Health</a>
-      <a href="/articles-update.html" class="active">Articles Update</a>
+      <a class="active" href="/articles-update.html">Articles Update</a>
       <a href="/team.html">Team</a>
       <a href="/dashboard.html">Dashboard</a>
     </nav>
     <main>
-      <h1>Articles Update</h1>
-      <div id="session-banner" class="banner hidden"></div>
-      <div class="drop" id="update-drop" tabindex="0">Drop a JSON updates file (or click to browse)</div>
-      <input type="file" id="update-file" accept="application/json,.json" class="hidden" />
-      <div id="update-rows"></div>
-      <div class="row">
-        <button type="button" id="confirm-all" class="primary" disabled>Confirm All</button>
-        <button type="button" id="download-receipt" class="hidden">Download confirmation receipt</button>
+      <div class="banner" data-session-banner></div>
+      <h2>Articles Update</h2>
+      <p class="muted">Accepts a JSON array or a <code>*-article-updates-YYYY-MM-DD.json</code> file.</p>
+      <input type="file" id="file" accept=".json" />
+      <textarea id="json" rows="10" placeholder='[{"slug":"...","newParagraph":"...","newUpdatedDate":"2026-08-20","newSources":[]}]'></textarea>
+      <div class="flex">
+        <button id="preview">Preview</button>
+        <button id="confirm-all" disabled>Confirm All</button>
+        <button id="receipt" class="secondary" disabled>Download confirmation receipt</button>
       </div>
+      <p id="unmatched" class="err"></p>
+      <div id="rows"></div>
     </main>
   </div>
-  <script src="/app.js"></script>
+  <script type="module">
+    import { api } from "/app.js";
+    let previewRows = [];
+    let lastConfirmed = [];
+
+    document.getElementById("preview").onclick = async () => {
+      const fd = new FormData();
+      const file = document.getElementById("file").files[0];
+      if (file) fd.append("file", file);
+      else fd.append("json", document.getElementById("json").value);
+      const data = await api("/api/update/preview", { method: "POST", body: fd });
+      previewRows = data.rows;
+      document.getElementById("unmatched").textContent = data.unmatched.length ? "Unmatched slugs: " + data.unmatched.join(", ") : "";
+      document.getElementById("rows").innerHTML = data.rows.map((row, i) => `
+        <div class="row">
+          <strong>${row.slug}</strong> ${row.matched ? "" : "<span class='err'>unmatched</span>"}
+          <div class="grid-2">
+            <div><p class="muted">Current</p><pre>${(row.currentParagraph || "").replace(/</g, "&lt;")}</pre></div>
+            <div><p class="muted">Proposed (${row.newUpdatedDate || ""})</p><pre>${(row.newParagraph || "").replace(/</g, "&lt;")}</pre></div>
+          </div>
+          ${(row.newSources || []).map((s, j) => `<label><input type="checkbox" checked data-row="${i}" data-src="${j}" /> ${s.title} — ${s.url}</label>`).join("")}
+          <button data-confirm="${i}" ${row.matched ? "" : "disabled"}>Confirm</button>
+        </div>`).join("");
+      document.getElementById("confirm-all").disabled = !data.rows.some((r) => r.matched);
+      document.querySelectorAll("[data-confirm]").forEach((btn) => {
+        btn.onclick = () => confirmRows([previewRows[Number(btn.dataset.confirm)]]);
+      });
+    };
+
+    function withChecks(items) {
+      return items.filter((r) => r.matched).map((row, idx) => {
+        const i = previewRows.indexOf(row);
+        const sources = (row.newSources || []).map((s, j) => ({
+          ...s,
+          checked: document.querySelector(`[data-row="${i}"][data-src="${j}"]`)?.checked !== false,
+        }));
+        return { ...row, newSources: sources };
+      });
+    }
+
+    async function confirmRows(items) {
+      const data = await api("/api/update/confirm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ items: withChecks(items) }),
+      });
+      lastConfirmed = data.confirmed;
+      document.getElementById("receipt").disabled = lastConfirmed.length === 0;
+    }
+
+    document.getElementById("confirm-all").onclick = () => confirmRows(previewRows);
+
+    document.getElementById("receipt").onclick = async () => {
+      const data = await api("/api/update/receipt");
+      const blob = new Blob([JSON.stringify(data.receipts, null, 2)], { type: "application/json" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = data.filename;
+      a.click();
+    };
+  </script>
 </body>
 </html>

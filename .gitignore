@@ -2,10 +2,7 @@ node_modules
 site/dist
 site/.astro
 cms/.env
-*.log
+cms/data/serp-cache
+.env
 .DS_Store
 Thumbs.db
-.vscode
-.idea
-lh-*.json
-lh-*.html

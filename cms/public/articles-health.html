@@ -2,42 +2,126 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Articles Health</title>
   <link rel="stylesheet" href="/styles.css" />
 </head>
-<body data-page="health">
+<body>
   <div class="layout">
-    <nav class="side">
-      <h1>Local CMS</h1>
+    <nav>
+      <h1>CMS</h1>
       <a href="/articles.html">Articles</a>
       <a href="/add-article.html">Add Article</a>
-      <a href="/articles-health.html" class="active">Articles Health</a>
+      <a class="active" href="/articles-health.html">Articles Health</a>
       <a href="/articles-update.html">Articles Update</a>
       <a href="/team.html">Team</a>
       <a href="/dashboard.html">Dashboard</a>
     </nav>
     <main>
-      <h1>Articles Health</h1>
-      <div id="session-banner" class="banner hidden"></div>
-      <div class="row">
-        <button type="button" id="connect-all" class="primary">Connect All Internal Links</button>
-        <button type="button" id="propose-all">Propose All External Links</button>
+      <div class="banner" data-session-banner></div>
+      <h2>Articles Health</h2>
+      <div class="flex">
+        <button id="connect-internal">Connect All Internal Links</button>
+        <button id="find-approve">Find and Approve</button>
+        <button id="connect-external" disabled>Connect All</button>
       </div>
-      <p id="health-progress"></p>
-      <div class="card">
-        <h2>PageSpeed one-off test</h2>
-        <p class="muted">Scan any reachable URL to verify the integration. Seed articles have no live deploy.</p>
-        <div class="row">
-          <input id="speed-url" placeholder="https://example.com" />
-          <button type="button" id="speed-test">Scan URL</button>
-        </div>
-        <pre id="speed-result"></pre>
+      <p id="status" class="muted"></p>
+      <div id="summary"></div>
+      <h3>One-off PageSpeed scan</h3>
+      <div class="flex">
+        <input id="ps-url" placeholder="https://www.example.com/" />
+        <button id="ps-run">Scan URL</button>
       </div>
-      <div id="propose-review" class="hidden"></div>
-      <div id="health-list"></div>
+      <pre id="ps-out"></pre>
+      <div id="rows"></div>
     </main>
   </div>
-  <script src="/app.js"></script>
+  <script type="module">
+    import { api } from "/app.js";
+    const rowsEl = document.getElementById("rows");
+    const status = document.getElementById("status");
+    let searchRows = [];
+
+    function speedLabel(result) {
+      if (!result) return "<span class='gray'>unscanned</span>";
+      if (result.error === "GOOGLE_PAGESPEED_API_KEY is not configured") return "<span class='warn'>not configured</span>";
+      if (result.ok) return `<span class='ok'>success ${result.mobile?.scores?.performance ?? ""}/${result.desktop?.scores?.performance ?? ""}</span>`;
+      return `<span class='err'>scan failed ${result.status || result.error || ""}</span>`;
+    }
+
+    async function load() {
+      const data = await api("/api/health");
+      rowsEl.innerHTML = data.rows.map((row) => {
+        const l = row.indicators.links;
+        const m = row.indicators.meta;
+        const c = row.indicators.cluster;
+        const b = row.indicators.body;
+        const s = row.indicators.schemaSitemap;
+        return `<details class="row">
+          <summary>${row.title} <span class="muted">${row.slug}</span></summary>
+          <p>Links: orphan=${l.orphan} missingPillar=${l.missingPillarLink} ext=${l.externalCount} broken=${l.broken.length}</p>
+          <p>Meta: title ${m.titleLength} desc ${m.descriptionLength} dupTitle=${m.duplicateTitle} dupDesc=${m.duplicateDescription}</p>
+          <p>Cluster: cannibal=${c.cannibalization} comprehensiveWithoutPillar=${c.comprehensiveWithoutPillar}</p>
+          <p>Body: wts=${b.wts} keyTakeaways=${b.keyTakeaways} singleH1=${b.singleH1} alt=${b.imageAlt}</p>
+          <p>Schema/Sitemap: jsonld=${s.jsonLd.ok} sitemap=${s.inSitemap}</p>
+          <p>Speed: ${row.published_url ? `<button data-speed="${row.slug}" data-url="${row.published_url}">Scan</button>` : "<span class='muted'>disabled — no published_url</span>"} <span id="speed-${row.slug}" class="gray">unscanned</span></p>
+        </details>`;
+      }).join("");
+      rowsEl.querySelectorAll("[data-speed]").forEach((btn) => {
+        btn.onclick = async () => {
+          const resultWrap = await api("/api/health/pagespeed", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url: btn.dataset.url }) });
+          document.getElementById("speed-" + btn.dataset.speed).innerHTML = speedLabel(resultWrap.result);
+        };
+      });
+    }
+
+    document.getElementById("connect-internal").onclick = async () => {
+      status.textContent = "Connecting internal links…";
+      const data = await api("/api/health/connect-internal", { method: "POST" });
+      status.textContent = `Updated ${data.updated.length}, skipped ${data.skipped.length}`;
+      await load();
+    };
+
+    document.getElementById("find-approve").onclick = async () => {
+      const count = await api("/api/health/external-count");
+      if (!confirm(`This will run ${count.calls} DataForSEO SERP calls (cached results excluded). Continue?`)) return;
+      status.textContent = "Searching…";
+      const data = await api("/api/health/search-external", { method: "POST" });
+      searchRows = data.rows;
+      document.getElementById("summary").innerHTML = data.rows.map((row, i) => `
+        <div class="row">
+          <strong>${row.title}</strong> <span class="muted">${row.slug}</span>
+          ${row.available ? "" : `<p class="err">${row.reason}</p>`}
+          ${(row.candidates || []).map((c, j) => `<label><input type="checkbox" checked data-row="${i}" data-i="${j}" /> ${c.title} — ${c.url}</label>`).join("")}
+        </div>`).join("");
+      document.getElementById("connect-external").disabled = false;
+      status.textContent = "Review candidates, then Connect All.";
+    };
+
+    document.getElementById("connect-external").onclick = async () => {
+      const selections = searchRows.map((row, i) => {
+        const boxes = [...document.querySelectorAll(`[data-row="${i}"]`)];
+        const links = boxes.filter((b) => b.checked).map((b) => {
+          const c = row.candidates[Number(b.dataset.i)];
+          return { label: c.title, url: c.url };
+        });
+        return { slug: row.slug, links };
+      });
+      const data = await api("/api/health/connect-external", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ selections }),
+      });
+      status.textContent = `Wrote external links for ${data.updated.length} articles`;
+      await load();
+    };
+
+    document.getElementById("ps-run").onclick = async () => {
+      const url = document.getElementById("ps-url").value.trim();
+      const data = await api("/api/health/pagespeed", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url }) });
+      document.getElementById("ps-out").textContent = JSON.stringify(data.result, null, 2);
+    };
+
+    load();
+  </script>
 </body>
 </html>

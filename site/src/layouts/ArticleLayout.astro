@@ -1,46 +1,131 @@
 ---
+import { getImage } from "astro:assets";
+import { render, type CollectionEntry } from "astro:content";
 import BaseLayout from "./BaseLayout.astro";
-import type { ImageMetadata } from "astro";
-
-interface BreadcrumbItem {
-  name: string;
-  path: string;
-}
-
-interface PersonLd {
-  name: string;
-  url?: string;
-  jobTitle?: string;
-  description?: string;
-  sameAs?: string[];
-  image?: string;
-}
+import Breadcrumbs from "../components/Breadcrumbs.astro";
+import TableOfContents from "../components/TableOfContents.astro";
+import FaqBlock from "../components/FaqBlock.astro";
+import RelatedLinks from "../components/RelatedLinks.astro";
+import Sources from "../components/Sources.astro";
+import AuthorBio from "../components/AuthorBio.astro";
+import { Image } from "astro:assets";
+import { ARTICLES_BASE, SITE_NAME, SITE_URL } from "../config/site";
+import { formatDate } from "../lib/formatDate";
+import { abs } from "../lib/url";
+import { breadcrumbNode, faqPageNode, orgNode, personNode, websiteNode } from "../lib/jsonld";
 
 interface Props {
-  title: string;
-  description: string;
-  canonicalPath: string;
-  ogTitle?: string;
-  ogDescription?: string;
-  ogImage?: ImageMetadata;
-  robots?: string;
-  locale?: string;
-  twitterCard?: string;
-  schemaType?: string;
-  breadcrumbs?: BreadcrumbItem[];
-  person?: PersonLd;
-  faqs?: { question: string; answer: string }[];
-  datePublished?: Date | string;
-  dateModified?: Date | string;
-  articleSection?: string;
-  keywords?: string[];
+  article: CollectionEntry<"articles">;
+  author: CollectionEntry<"team">;
 }
 
-const props = Astro.props;
+const { article, author } = Astro.props;
+const { Content, headings } = await render(article);
+const data = article.data;
+const slug = article.id;
+const canonicalPath = `/${ARTICLES_BASE}/${slug}/`;
+const pageUrl = abs(canonicalPath);
+const dateModified = data.updatedDate || data.date;
+const showUpdated =
+  Boolean(data.updatedDate) && data.updatedDate! > data.date;
+
+const imageOpts = { src: data.image, width: 1200, height: 675 };
+const og = await getImage(imageOpts);
+const ogAbs = abs(og.src);
+const authorPhoto = await getImage({ src: author.data.photo, width: 96, height: 96 });
+
+const crumbs = [
+  { name: "Home", href: abs("/") },
+  { name: "Articles", href: abs(`/${ARTICLES_BASE}/`) },
+  { name: data.title, href: pageUrl },
+];
+
+const person = personNode({
+  slug: author.id,
+  name: author.data.name,
+  role: author.data.role,
+  description: author.data.bio.replace(/\s+/g, " ").trim().slice(0, 300),
+  image: abs(authorPhoto.src),
+  sameAs: author.data.sameAs,
+  knowsAbout: author.data.knowsAbout,
+});
+
+const articleNode: Record<string, unknown> = {
+  "@type": data.schemaType,
+  "@id": `${pageUrl}#article`,
+  headline: data.title,
+  description: data.description,
+  image: [ogAbs],
+  datePublished: data.date,
+  dateModified,
+  author: { "@id": person["@id"] },
+  publisher: { "@id": `${SITE_URL}#org` },
+  mainEntityOfPage: { "@id": pageUrl },
+  isPartOf: { "@id": `${SITE_URL}#website` },
+  keywords: data.tags.join(", "),
+};
+if (data.pillarKeyword) articleNode.articleSection = data.pillarKeyword;
+
+const graph: unknown[] = [orgNode(), websiteNode(), person, breadcrumbNode(crumbs), articleNode];
+if (data.faqs.length) graph.push(faqPageNode(data.faqs, pageUrl));
+
+const jsonLd = { "@context": "https://schema.org", "@graph": graph };
 ---
 
-<BaseLayout {...props}>
-  <article class="page-wrap py-8 lg:py-12">
-    <slot />
+<BaseLayout
+  title={data.title}
+  description={data.description}
+  canonicalPath={canonicalPath}
+  ogType="article"
+  ogImage={ogAbs}
+  robots={data.robots}
+  locale={data.locale}
+  twitterCard={data.twitterCard}
+  jsonLd={jsonLd}
+  articleMeta={{
+    publishedTime: data.date,
+    modifiedTime: dateModified,
+    author: author.data.name,
+    tags: data.tags,
+    section: data.pillarKeyword,
+  }}
+>
+  <article class="container-page py-10">
+    <Breadcrumbs crumbs={crumbs} />
+    <div class="hero-frame mb-6">
+      <Image
+        src={data.image}
+        width={1200}
+        height={675}
+        alt={data.imageAlt}
+        loading="eager"
+        fetchpriority="high"
+      />
+    </div>
+    <header class="mb-8">
+      <h1 class="font-serif text-4xl mb-3">{data.title}</h1>
+      <p class="text-sm text-muted">
+        By <a class="underline hover:text-accent" href={`/team/${author.id}/`}>{author.data.name}</a>
+        · {formatDate(data.date)}
+        {showUpdated && (
+          <> · Updated on {formatDate(data.updatedDate!)}</>
+        )}
+      </p>
+    </header>
+    <TableOfContents headings={headings} />
+    <div class="prose-article">
+      <Content />
+    </div>
+    <FaqBlock faqs={data.faqs} />
+    <RelatedLinks links={data.internalLinks} />
+    <Sources sources={data.externalLinks} />
+    <AuthorBio
+      name={author.data.name}
+      role={author.data.role}
+      bio={author.data.bio.split("\n\n")[0] ?? author.data.bio}
+      slug={author.id}
+      photoSrc={authorPhoto.src}
+      photoAlt={`${author.data.name} headshot`}
+    />
   </article>
 </BaseLayout>

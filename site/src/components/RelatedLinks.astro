@@ -1,25 +1,23 @@
 ---
-import { pagePath } from "../lib/url";
+import { ARTICLES_BASE } from "../config/site";
 
 interface Link {
-  label: string;
-  url: string;
+  slug: string;
+  anchor: string;
 }
-
 interface Props {
-  links?: Link[];
+  links: Link[];
 }
-
-const { links = [] } = Astro.props;
+const { links } = Astro.props;
 ---
 
 {links.length > 0 && (
-  <section class="my-10">
-    <h2 class="mb-4 text-xl">Related Reads</h2>
-    <ul class="list-disc space-y-2 pl-5">
+  <section class="mt-12" aria-labelledby="related-heading">
+    <h2 id="related-heading" class="font-serif text-3xl mb-4">Related</h2>
+    <ul class="list-disc ml-6">
       {links.map((link) => (
         <li>
-          <a href={pagePath(link.url)}>{link.label}</a>
+          <a class="text-accent underline" href={`/${ARTICLES_BASE}/${link.slug}/`}>{link.anchor}</a>
         </li>
       ))}
     </ul>

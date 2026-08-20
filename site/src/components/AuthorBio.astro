@@ -1,38 +1,23 @@
 ---
-import { Image } from "astro:assets";
-import type { ImageMetadata } from "astro";
-import { pagePath } from "../lib/url";
-
 interface Props {
   name: string;
-  slug: string;
   role: string;
   bio: string;
-  credentials?: string;
-  photo: ImageMetadata;
+  slug: string;
+  photoSrc: string;
+  photoAlt: string;
 }
-
-const { name, slug, role, bio, credentials, photo } = Astro.props;
+const { name, role, bio, slug, photoSrc, photoAlt } = Astro.props;
 ---
 
-<aside class="my-10 border-t border-border pt-8">
-  <h2 class="mb-4 text-xl">About the author</h2>
-  <div class="flex flex-col gap-4 sm:flex-row">
-    <Image
-      src={photo}
-      alt={`Portrait of ${name}`}
-      width={96}
-      height={96}
-      class="h-24 w-24 object-cover"
-      loading="lazy"
-    />
+<section class="mt-12 border-t border-border pt-8" aria-labelledby="author-heading">
+  <h2 id="author-heading" class="font-serif text-3xl mb-4">About the author</h2>
+  <div class="flex gap-4 items-start">
+    <img src={photoSrc} alt={photoAlt} width="96" height="96" loading="lazy" class="w-24 h-24 object-cover" />
     <div>
-      <p class="font-heading text-lg font-semibold text-heading">
-        <a href={pagePath(`/team/#${slug}`)} class="no-underline">{name}</a>
-      </p>
-      <p class="text-sm text-muted">{role}</p>
-      {credentials && <p class="text-sm text-muted">{credentials}</p>}
-      <p class="mt-2">{bio}</p>
+      <p class="font-medium"><a class="text-accent underline" href={`/team/${slug}/`}>{name}</a></p>
+      <p class="text-sm text-muted mb-2">{role}</p>
+      <p class="text-base">{bio}</p>
     </div>
   </div>
-</aside>
+</section>

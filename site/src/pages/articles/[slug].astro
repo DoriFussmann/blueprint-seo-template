@@ -1,117 +1,91 @@
 ---
-import { getCollection, getEntry, render } from "astro:content";
-import { Image, getImage } from "astro:assets";
+import { getCollection, getEntry, type CollectionEntry } from "astro:content";
 import ArticleLayout from "../../layouts/ArticleLayout.astro";
-import AuthorBio from "../../components/AuthorBio.astro";
+import BaseLayout from "../../layouts/BaseLayout.astro";
 import Breadcrumbs from "../../components/Breadcrumbs.astro";
-import RelatedLinks from "../../components/RelatedLinks.astro";
-import Sources from "../../components/Sources.astro";
-import FaqBlock from "../../components/FaqBlock.astro";
-import TableOfContents from "../../components/TableOfContents.astro";
-import BackToTop from "../../components/BackToTop.astro";
-import { pagePath, absoluteUrl } from "../../lib/url";
-import { extractHeadings } from "../../lib/headings";
-import { formatDisplayDate, isLaterCalendarDay } from "../../lib/dates";
+import ArticleListing from "../../components/ArticleListing.astro";
+import { ARTICLES_BASE, SITE_NAME } from "../../config/site";
+import { abs } from "../../lib/url";
+import { breadcrumbNode, orgNode, websiteNode } from "../../lib/jsonld";
 
 export async function getStaticPaths() {
-  const articles = await getCollection("articles", ({ data }) => data.draft !== true);
-  return articles.map((entry) => ({
-    params: { slug: entry.data.slug },
-    props: { entry },
-  }));
-}
-
-const { entry } = Astro.props;
-const data = entry.data;
-
-if (data.slug !== entry.id && data.slug !== entry.id.replace(/\.md$/, "")) {
-  // filename/id should match slug; still render using frontmatter slug
-}
-
-const author = await getEntry("team", data.author);
-if (!author) {
-  throw new Error(
-    `Build failed: article "${data.slug}" references missing team entry "${data.author}"`
+  const PAGE_SIZE = 12;
+  const published = (await getCollection("articles", ({ data }) => data.draft !== true)).sort(
+    (a, b) => (b.data.updatedDate || b.data.date).localeCompare(a.data.updatedDate || a.data.date),
   );
+  const pageCount = Math.max(1, Math.ceil(published.length / PAGE_SIZE));
+  const pagePaths = [];
+  for (let page = 2; page <= pageCount; page++) {
+    pagePaths.push({
+      params: { slug: String(page) },
+      props: { kind: "page" as const, page, articles: published, pages: pageCount },
+    });
+  }
+
+  const articleEntries = await getCollection("articles", ({ data }) => {
+    if (import.meta.env.DEV) return true;
+    return data.draft !== true;
+  });
+  const articlePaths = articleEntries
+    .filter((article) => !/^\d+$/.test(article.id))
+    .map((article) => ({
+      params: { slug: article.id },
+      props: { kind: "article" as const, article },
+    }));
+
+  return [...pagePaths, ...articlePaths];
 }
 
-const { Content } = await render(entry);
-const headings = extractHeadings(entry.body);
-const h1 = data.h1 || data.title;
-const updated = data.updatedDate || data.date;
-const showUpdated = isLaterCalendarDay(data.updatedDate, data.date);
-const canonicalPath = data.canonical
-  ? data.canonical
-  : `/articles/${data.slug}/`;
+type Props =
+  | { kind: "article"; article: CollectionEntry<"articles"> }
+  | { kind: "page"; page: number; articles: CollectionEntry<"articles">[]; pages: number };
 
-const authorImage = await getImage({
-  src: author.data.photo,
-  width: 256,
-  height: 256,
-});
+const props = Astro.props as Props;
 
-const breadcrumbs = [
-  { name: "Home", path: "/" },
-  { name: "Articles", path: "/articles/" },
-  { name: data.title, path: `/articles/${data.slug}/` },
-];
+let author: CollectionEntry<"team"> | undefined;
+if (props.kind === "article") {
+  author = await getEntry("team", props.article.data.author);
+  if (!author) {
+    throw new Error(`Missing team member "${props.article.data.author}" for article "${props.article.id}"`);
+  }
+}
+
+const PAGE_SIZE = 12;
+const listing =
+  props.kind === "page"
+    ? {
+        page: props.page,
+        pages: props.pages,
+        slice: props.articles.slice((props.page - 1) * PAGE_SIZE, props.page * PAGE_SIZE),
+        pillars: [...new Set(props.articles.map((a) => a.data.pillarKeyword).filter(Boolean))] as string[],
+        canonicalPath: `/${ARTICLES_BASE}/${props.page}/`,
+        crumbs: [
+          { name: "Home", href: abs("/") },
+          { name: "Articles", href: abs(`/${ARTICLES_BASE}/`) },
+          { name: `Page ${props.page}`, href: abs(`/${ARTICLES_BASE}/${props.page}/`) },
+        ],
+      }
+    : null;
 ---
 
-<ArticleLayout
-  title={data.title}
-  description={data.description}
-  canonicalPath={canonicalPath}
-  ogTitle={data.ogTitle}
-  ogDescription={data.ogDescription}
-  ogImage={data.ogImage || data.image}
-  robots={data.robots}
-  locale={data.locale}
-  twitterCard={data.twitterCard}
-  schemaType={data.schemaType}
-  breadcrumbs={breadcrumbs}
-  person={{
-    name: author.data.name,
-    url: absoluteUrl(`/team/#${author.data.slug}`),
-    jobTitle: author.data.role,
-    description: author.data.bio,
-    sameAs: author.data.sameAs,
-    image: new URL(authorImage.src, Astro.site).href,
-  }}
-  faqs={data.faqs || []}
-  datePublished={data.date}
-  dateModified={updated}
-  articleSection={data.category}
-  keywords={data.keywords || data.tags}
->
-  <div class="hero-frame mb-8">
-    <Image
-      src={data.image}
-      alt={data.imageAlt}
-      width={1200}
-      height={675}
-      loading="eager"
-    />
-  </div>
-  <h1 class="text-4xl">{h1}</h1>
-  <p class="mt-4 text-sm text-muted">
-    Published on {formatDisplayDate(data.date)}
-    {showUpdated && ` · Updated on ${formatDisplayDate(data.updatedDate!)}`}
-  </p>
-  <TableOfContents headings={headings} />
-  <div class="prose-article max-w-article [&_h2]:mt-10 [&_h2]:text-2xl [&_h3]:mt-8 [&_h3]:text-xl [&_p]:mt-4 [&_ul]:mt-4 [&_ol]:mt-4">
-    <Content />
-  </div>
-  <BackToTop />
-  <AuthorBio
-    name={author.data.name}
-    slug={author.data.slug}
-    role={author.data.role}
-    bio={author.data.bio}
-    credentials={author.data.credentials}
-    photo={author.data.photo}
-  />
-  <Breadcrumbs items={breadcrumbs} />
-  <RelatedLinks links={data.internalLinks || []} />
-  <Sources links={data.externalLinks || []} />
-  <FaqBlock faqs={data.faqs || []} />
-</ArticleLayout>
+{props.kind === "article" && author && (
+  <ArticleLayout article={props.article} author={author} />
+)}
+
+{props.kind === "page" && listing && (
+  <BaseLayout
+    title={`${SITE_NAME} articles — Page ${listing.page}`}
+    description="Browse published articles covering technical SEO, content strategy, and the operational systems behind them."
+    canonicalPath={listing.canonicalPath}
+    jsonLd={{
+      "@context": "https://schema.org",
+      "@graph": [orgNode(), websiteNode(), breadcrumbNode(listing.crumbs)],
+    }}
+  >
+    <div class="container-page py-10">
+      <Breadcrumbs crumbs={listing.crumbs} />
+      <h1 class="font-serif text-4xl mb-6">Articles</h1>
+      <ArticleListing articles={listing.slice} pillars={listing.pillars} page={listing.page} pages={listing.pages} />
+    </div>
+  </BaseLayout>
+)}
