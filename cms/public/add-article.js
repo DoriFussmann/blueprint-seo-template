@@ -60,7 +60,11 @@ function refreshGenerate() {
     const row = state.single.parse;
     $("generate").disabled = !(row && row.ok && (state.single.hero || row.hasImage));
   } else {
-    $("generate").disabled = !(state.batch.rows.length && state.batch.rows.every((r) => r.ok));
+    const fallback = $("batch-hero-all").files.length > 0;
+    $("generate").disabled = !(
+      state.batch.rows.length &&
+      state.batch.rows.every((r) => r.ok && (r.hasImage || fallback))
+    );
   }
 }
 
@@ -95,8 +99,17 @@ $("mode-batch").onclick = () => setMode("batch");
 $("single-md").onchange = (e) => { state.single.md = e.target.files[0]; parseSingle(); };
 $("single-hero").onchange = (e) => { state.single.hero = e.target.files[0]; parseSingle(); };
 $("single-author").onchange = parseSingle;
-$("batch-md").onchange = (e) => { state.batch.files.push(...e.target.files); parseBatch(); };
-$("batch-img").onchange = (e) => { state.batch.files.push(...e.target.files); parseBatch(); };
+$("batch-files").onchange = (e) => { state.batch.files.push(...e.target.files); parseBatch(); };
+const batchDrop = $("batch-drop");
+batchDrop.addEventListener("dragover", (e) => { e.preventDefault(); }, true);
+batchDrop.addEventListener("drop", (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  if (e.dataTransfer?.files?.length) {
+    state.batch.files.push(...e.dataTransfer.files);
+    parseBatch();
+  }
+}, true);
 $("batch-author").onchange = parseBatch;
 $("batch-hero-all").onchange = (e) => {
   const file = e.target.files[0];

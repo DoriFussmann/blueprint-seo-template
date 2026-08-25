@@ -11,14 +11,12 @@ function unavailable(reason) {
 function authHeader() {
   const login = process.env.DATAFORSEO_LOGIN
   const password = process.env.DATAFORSEO_PASSWORD
-  if (!login || !password) return null
+  if (!login || !password) throw new Error("DATAFORSEO_LOGIN/PASSWORD not configured")
   return `Basic ${Buffer.from(`${login}:${password}`).toString('base64')}`
 }
 
 async function dfsPost(path, task) {
   const auth = authHeader()
-  if (!auth) return unavailable('DATAFORSEO_LOGIN/PASSWORD not configured')
-
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS)
   try {

@@ -21,7 +21,7 @@
       <h2>Articles Health</h2>
       <div class="flex">
         <button id="connect-internal">Connect All Internal Links</button>
-        <button id="find-approve">Find and Approve</button>
+        <button id="find-approve">Find &amp; Approve External Links</button>
         <button id="connect-external" disabled>Connect All</button>
       </div>
       <p id="status" class="muted"></p>
@@ -82,19 +82,23 @@
     };
 
     document.getElementById("find-approve").onclick = async () => {
-      const count = await api("/api/health/external-count");
-      if (!confirm(`This will run ${count.calls} DataForSEO SERP calls (cached results excluded). Continue?`)) return;
-      status.textContent = "Searching…";
-      const data = await api("/api/health/search-external", { method: "POST" });
-      searchRows = data.rows;
-      document.getElementById("summary").innerHTML = data.rows.map((row, i) => `
-        <div class="row">
-          <strong>${row.title}</strong> <span class="muted">${row.slug}</span>
-          ${row.available ? "" : `<p class="err">${row.reason}</p>`}
-          ${(row.candidates || []).map((c, j) => `<label><input type="checkbox" checked data-row="${i}" data-i="${j}" /> ${c.title} — ${c.url}</label>`).join("")}
-        </div>`).join("");
-      document.getElementById("connect-external").disabled = false;
-      status.textContent = "Review candidates, then Connect All.";
+      try {
+        const count = await api("/api/health/external-count");
+        if (!confirm(`This will run ${count.calls} DataForSEO SERP calls (cached results excluded). Continue?`)) return;
+        status.textContent = "Searching…";
+        const data = await api("/api/health/search-external", { method: "POST" });
+        searchRows = data.rows;
+        document.getElementById("summary").innerHTML = data.rows.map((row, i) => `
+          <div class="row">
+            <strong>${row.title}</strong> <span class="muted">${row.slug}</span>
+            ${row.available ? "" : `<p class="err">${row.reason}</p>`}
+            ${(row.candidates || []).map((c, j) => `<label><input type="checkbox" checked data-row="${i}" data-i="${j}" /> ${c.title} — ${c.url}</label>`).join("")}
+          </div>`).join("");
+        document.getElementById("connect-external").disabled = false;
+        status.textContent = "Review candidates, then Connect All.";
+      } catch (err) {
+        status.textContent = err.message || String(err);
+      }
     };
 
     document.getElementById("connect-external").onclick = async () => {

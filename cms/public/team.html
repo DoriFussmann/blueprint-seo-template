@@ -19,7 +19,16 @@
     <main>
       <div class="banner" data-session-banner></div>
       <h2>Team</h2>
-      <div id="list"></div>
+      <table id="table">
+        <thead>
+          <tr>
+            <th data-col="name" class="sortable">Name <span class="sort-icon">⇅</span></th>
+            <th data-col="role" class="sortable">Role <span class="sort-icon">⇅</span></th>
+            <th data-col="slug" class="sortable">Slug <span class="sort-icon">⇅</span></th>
+          </tr>
+        </thead>
+        <tbody id="list"></tbody>
+      </table>
       <h3>Create / edit</h3>
       <form id="form">
         <label>Name <input name="name" required /></label>
@@ -37,10 +46,38 @@
   </div>
   <script type="module">
     import { api } from "/app.js";
+    let allTeam = [];
+    let sortCol = "name";
+    let sortDir = "asc";
+
+    function renderTable() {
+      const rows = [...allTeam].sort((a, b) => {
+        const av = (sortCol === "slug" ? a.slug : a.data[sortCol] || "").toString();
+        const bv = (sortCol === "slug" ? b.slug : b.data[sortCol] || "").toString();
+        return sortDir === "asc" ? av.localeCompare(bv) : bv.localeCompare(av);
+      });
+      document.getElementById("list").innerHTML = rows.map((t) =>
+        `<tr><td>${t.data.name}</td><td>${t.data.role}</td><td class="muted">${t.slug}</td></tr>`
+      ).join("");
+    }
+
     async function load() {
       const data = await api("/api/team");
-      document.getElementById("list").innerHTML = data.team.map((t) => `<div class="row"><strong>${t.data.name}</strong> — ${t.data.role} <span class="muted">${t.slug}</span></div>`).join("");
+      allTeam = data.team;
+      renderTable();
     }
+
+    document.querySelectorAll("th.sortable").forEach((th) => {
+      th.onclick = () => {
+        const col = th.dataset.col;
+        if (sortCol === col) sortDir = sortDir === "asc" ? "desc" : "asc";
+        else { sortCol = col; sortDir = "asc"; }
+        document.querySelectorAll("th.sortable").forEach((t) => t.classList.remove("sort-asc", "sort-desc"));
+        th.classList.add(sortDir === "asc" ? "sort-asc" : "sort-desc");
+        renderTable();
+      };
+    });
+    document.querySelector('[data-col="name"]').classList.add("sort-asc");
     document.getElementById("form").onsubmit = async (e) => {
       e.preventDefault();
       const fd = new FormData(e.target);

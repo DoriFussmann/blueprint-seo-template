@@ -41,15 +41,11 @@
       </section>
 
       <section id="batch-panel" hidden>
-        <div class="grid-2">
-          <div class="drop">Markdown files
-            <input type="file" id="batch-md" accept=".md,.zip" multiple />
-          </div>
-          <div class="drop">Images (.png/.jpg/.jpeg/.webp)
-            <input type="file" id="batch-img" accept=".png,.jpg,.jpeg,.webp,.zip" multiple />
-          </div>
+        <div class="drop" id="batch-drop">
+          Drop .md files + images here (or click to browse)
+          <input type="file" id="batch-files" accept=".md,.zip,.png,.jpg,.jpeg,.webp" multiple />
         </div>
-        <p class="muted">A single .zip of both is accepted in either drop zone.</p>
+        <p class="muted">A single .zip of markdown and images is accepted.</p>
         <div class="flex">
           <label>Author for all rows <select id="batch-author"></select></label>
           <label>Hero for rows missing an image <input type="file" id="batch-hero-all" accept=".png,.jpg,.jpeg,.webp" /></label>

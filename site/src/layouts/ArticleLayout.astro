@@ -122,7 +122,7 @@ const jsonLd = { "@context": "https://schema.org", "@graph": graph };
     <AuthorBio
       name={author.data.name}
       role={author.data.role}
-      bio={author.data.bio.split("\n\n")[0] ?? author.data.bio}
+      bio={author.data.bio}
       slug={author.id}
       photoSrc={authorPhoto.src}
       photoAlt={`${author.data.name} headshot`}

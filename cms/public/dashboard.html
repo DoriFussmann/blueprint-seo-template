@@ -23,8 +23,17 @@
       <table>
         <thead>
           <tr>
-            <th>Title</th><th>Slug</th><th>Author</th><th>Pillar</th><th>Supporting</th>
-            <th>Type</th><th>Date</th><th>Updated</th><th>Draft</th><th>In</th><th>Ext</th>
+            <th data-col="title" class="sortable">Title <span class="sort-icon">⇅</span></th>
+            <th data-col="slug" class="sortable">Slug <span class="sort-icon">⇅</span></th>
+            <th data-col="author" class="sortable">Author <span class="sort-icon">⇅</span></th>
+            <th data-col="pillarKeyword" class="sortable">Pillar <span class="sort-icon">⇅</span></th>
+            <th data-col="supportingKeyword" class="sortable">Supporting <span class="sort-icon">⇅</span></th>
+            <th data-col="articleType" class="sortable">Type <span class="sort-icon">⇅</span></th>
+            <th data-col="date" class="sortable">Date <span class="sort-icon">⇅</span></th>
+            <th data-col="updatedDate" class="sortable">Updated <span class="sort-icon">⇅</span></th>
+            <th data-col="draft" class="sortable">Draft <span class="sort-icon">⇅</span></th>
+            <th data-col="internalCount" class="sortable">In <span class="sort-icon">⇅</span></th>
+            <th data-col="externalCount" class="sortable">Ext <span class="sort-icon">⇅</span></th>
           </tr>
         </thead>
         <tbody id="tb"></tbody>
@@ -34,12 +43,43 @@
   <script type="module">
     import { api } from "/app.js";
     const data = await api("/api/articles");
-    document.getElementById("tb").innerHTML = data.articles.map((a) => `<tr>
-      <td>${a.title}</td><td>${a.slug}</td><td>${a.author}</td>
-      <td>${a.pillarKeyword || ""}</td><td>${a.supportingKeyword || ""}</td>
-      <td>${a.articleType || ""}</td><td>${a.date || ""}</td><td>${a.updatedDate || ""}</td>
-      <td>${a.draft ? "yes" : ""}</td><td>${a.internalCount}</td><td>${a.externalCount}</td>
-    </tr>`).join("");
+    let allArticles = data.articles;
+    let sortCol = "date";
+    let sortDir = "desc";
+
+    function sortValue(a, col) {
+      if (col === "date") return (a.updatedDate || a.date || "").toString();
+      if (col === "draft") return a.draft ? "yes" : "";
+      return (a[col] ?? "").toString();
+    }
+
+    function renderTable() {
+      const rows = [...allArticles].sort((a, b) => {
+        const av = sortValue(a, sortCol);
+        const bv = sortValue(b, sortCol);
+        return sortDir === "asc" ? av.localeCompare(bv, undefined, { numeric: true }) : bv.localeCompare(av, undefined, { numeric: true });
+      });
+      document.getElementById("tb").innerHTML = rows.map((a) => `<tr>
+        <td>${a.title}</td><td>${a.slug}</td><td>${a.author}</td>
+        <td>${a.pillarKeyword || ""}</td><td>${a.supportingKeyword || ""}</td>
+        <td>${a.articleType || ""}</td><td>${a.date || ""}</td><td>${a.updatedDate || ""}</td>
+        <td>${a.draft ? "yes" : ""}</td><td>${a.internalCount}</td><td>${a.externalCount}</td>
+      </tr>`).join("");
+    }
+
+    document.querySelectorAll("th.sortable").forEach((th) => {
+      th.onclick = () => {
+        const col = th.dataset.col;
+        if (sortCol === col) sortDir = sortDir === "asc" ? "desc" : "asc";
+        else { sortCol = col; sortDir = col === "date" || col === "updatedDate" ? "desc" : "asc"; }
+        document.querySelectorAll("th.sortable").forEach((t) => t.classList.remove("sort-asc", "sort-desc"));
+        th.classList.add(sortDir === "asc" ? "sort-asc" : "sort-desc");
+        renderTable();
+      };
+    });
+
+    document.querySelector('[data-col="date"]').classList.add("sort-desc");
+    renderTable();
   </script>
 </body>
 </html>

@@ -1,7 +1,7 @@
 import { config as loadEnv } from "dotenv";
 import express from "express";
 import multer from "multer";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { dirname, extname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import AdmZip from "adm-zip";
@@ -15,7 +15,7 @@ import {
   countUncachedSerpCalls,
   searchExternalLinks,
 } from "./lib/externalLinkSearch.ts";
-import { CMS_ROOT, DIST_DIR } from "./lib/paths.ts";
+import { ARTICLE_ASSETS, ARTICLES_DIR, CMS_ROOT, DIST_DIR } from "./lib/paths.ts";
 import { runPagespeedPanel } from "./lib/providers/pagespeed.js";
 import { distHasSlug, distJsonLd, publishedArticles, readArticles, readTeam } from "./lib/readContent.ts";
 import { validateFrontmatter } from "./lib/validateFrontmatter.ts";
@@ -57,6 +57,10 @@ function fail(res: express.Response, status: number, error: string, extra: Recor
 
 function stem(filename: string) {
   return filename.replace(/\.[^.]+$/, "").toLowerCase();
+}
+
+function normalizedStem(name: string) {
+  return stem(name).replace(/[-_]?(hero|image|img|cover|thumb)$/i, "");
 }
 
 function parseMarkdownBuffer(file: Express.Multer.File) {
@@ -138,6 +142,47 @@ app.get("/api/articles", (_req, res) => {
   res.json({ ok: true, ...sessionPayload(), articles });
 });
 
+app.post("/api/articles/set-draft", async (req, res) => {
+  try {
+    const { slug, draft } = req.body as { slug: string; draft: boolean };
+    if (!slug) return fail(res, 400, "slug is required");
+    const mdPath = join(ARTICLES_DIR, `${slug}.md`);
+    if (!existsSync(mdPath)) return fail(res, 404, "Article not found");
+    let content = readFileSync(mdPath, "utf8");
+    if (/^draft:\s*(true|false)/m.test(content)) {
+      content = content.replace(/^draft:\s*(true|false)/m, `draft: ${draft}`);
+    } else {
+      content = content.replace(/^---\r?\n/, (match) => `${match}draft: ${draft}\n`);
+    }
+    writeFileSync(mdPath, content, "utf8");
+    bumpSession();
+    res.json({ ok: true, slug, draft, ...sessionPayload() });
+  } catch (err) {
+    fail(res, 400, err instanceof Error ? err.message : String(err));
+  }
+});
+
+app.post("/api/articles/delete", async (req, res) => {
+  try {
+    const { slug } = req.body as { slug: string };
+    if (!slug) return fail(res, 400, "slug is required");
+    const mdPath = join(ARTICLES_DIR, `${slug}.md`);
+    if (!existsSync(mdPath)) return fail(res, 404, "Article not found");
+    unlinkSync(mdPath);
+    for (const ext of [".png", ".jpg", ".jpeg", ".webp"]) {
+      const imgPath = join(ARTICLE_ASSETS, `${slug}${ext}`);
+      if (existsSync(imgPath)) {
+        unlinkSync(imgPath);
+        break;
+      }
+    }
+    bumpSession();
+    res.json({ ok: true, slug, ...sessionPayload() });
+  } catch (err) {
+    fail(res, 400, err instanceof Error ? err.message : String(err));
+  }
+});
+
 function parseIncomingFiles(files: Express.Multer.File[]) {
   const markdown: ReturnType<typeof parseMarkdownBuffer>[] = [];
   const images = new Map<string, Express.Multer.File>();
@@ -157,12 +202,12 @@ function parseIncomingFiles(files: Express.Multer.File[]) {
           size: entry.header.size,
         } as Express.Multer.File;
         if (base.toLowerCase().endsWith(".md")) markdown.push(parseMarkdownBuffer(fake));
-        else if (/\.(png|jpe?g|webp)$/i.test(base)) images.set(stem(base), fake);
+        else if (/\.(png|jpe?g|webp)$/i.test(base)) images.set(normalizedStem(base), fake);
       }
     } else if (name.endsWith(".md")) {
       markdown.push(parseMarkdownBuffer(file));
     } else if (/\.(png|jpe?g|webp)$/i.test(name)) {
-      images.set(stem(file.originalname), file);
+      images.set(normalizedStem(file.originalname), file);
     } else {
       unmatched.push(file);
     }
@@ -176,7 +221,7 @@ app.post("/api/parse", upload.any(), (req, res) => {
     const { markdown, images } = parseIncomingFiles(files);
     const author = String(req.body.author || DEFAULT_AUTHOR);
     const rows = markdown.map((md) => {
-      const paired = images.get(md.stem);
+      const paired = images.get(normalizedStem(md.filename));
       const intake = validateFrontmatter({
         filenameStem: md.stem,
         rawData: md.data,
@@ -190,17 +235,15 @@ app.post("/api/parse", upload.any(), (req, res) => {
       return {
         slug: md.stem,
         filename: md.filename,
-        ok: intake.ok && Boolean(paired || intake.data.image),
-        errors: intake.ok && !(paired || intake.data.image)
-          ? [...intake.errors, { field: "image", message: "Hero image required" }]
-          : intake.errors,
+        ok: intake.ok,
+        errors: intake.errors,
         warnings,
         data: intake.data,
         body: intake.body,
         hasImage: Boolean(paired),
       };
     });
-    const assigned = new Set(markdown.map((m) => m.stem));
+    const assigned = new Set(markdown.map((m) => normalizedStem(m.filename)));
     const unassigned = [...images.entries()]
       .filter(([s]) => !assigned.has(s))
       .map(([s, f]) => ({ stem: s, filename: f.originalname }));
@@ -221,6 +264,9 @@ app.post("/api/generate", upload.any(), (req, res) => {
       imageStem?: string;
     }[] : markdown.map((m) => ({ slug: m.stem, author: req.body.author, draft: false }));
 
+    const mdStems = new Set(markdown.map((m) => normalizedStem(m.filename)));
+    const fallbackImage = [...images.entries()].find(([s]) => !mdStems.has(s))?.[1];
+
     const results = [];
     for (const row of payloads) {
       const md = markdown.find((m) => m.stem === row.slug);
@@ -228,7 +274,10 @@ app.post("/api/generate", upload.any(), (req, res) => {
         results.push({ slug: row.slug, ok: false, error: "Markdown missing from payload" });
         continue;
       }
-      const imageFile = (row.imageStem && images.get(row.imageStem)) || images.get(row.slug);
+      const imageFile =
+        (row.imageStem && images.get(normalizedStem(row.imageStem))) ||
+        images.get(normalizedStem(row.slug)) ||
+        fallbackImage;
       if (imageFile) {
         stagedHeroes.set(row.slug, { buffer: imageFile.buffer, ext: heroExtFromName(imageFile.originalname) });
       }
