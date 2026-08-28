@@ -1,8 +1,6 @@
 node_modules
 site/dist
 site/.astro
-cms/.env
-cms/data/serp-cache
 .env
 .DS_Store
 Thumbs.db
