@@ -22,7 +22,7 @@ keywords:
   - "improve core web vitals"
   - "howto"
   - "Technical SEO"
-draft: true
+draft: false
 internalLinks:
   - slug: "technical-seo-foundations"
     anchor: "technical seo foundations"

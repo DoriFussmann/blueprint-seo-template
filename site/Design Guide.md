@@ -66,7 +66,7 @@ Parseable JSON. `site/design-tokens.mjs` reads this fence and feeds `tailwind.co
   },
   "maxWidth": {
     "container": "72rem",
-    "article": "72rem"
+    "article": "90rem"
   }
 }
 ```

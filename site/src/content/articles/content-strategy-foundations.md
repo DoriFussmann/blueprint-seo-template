@@ -21,7 +21,7 @@ keywords:
   - "content strategy foundations"
   - "topic clusters"
   - "Content Strategy"
-draft: true
+draft: false
 internalLinks:
   - slug: "technical-seo-foundations"
     anchor: "technical seo foundations"

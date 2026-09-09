@@ -38,6 +38,10 @@ body {
   @apply mx-auto w-full max-w-container px-4 sm:px-6 lg:px-8;
 }
 
+.container-article {
+  @apply mx-auto w-full max-w-article px-4 sm:px-6 lg:px-8;
+}
+
 .prose-article {
   width: 100%;
 }
@@ -73,6 +77,19 @@ body {
 
 .prose-article li {
   @apply mb-1;
+}
+
+.key-takeaways {
+  @apply my-10 border border-border bg-bg px-6 py-5;
+}
+
+.key-takeaways h2 {
+  @apply mt-0 mb-3 text-2xl;
+}
+
+.key-takeaways ul,
+.key-takeaways ol {
+  @apply mb-0;
 }
 
 .hero-frame {

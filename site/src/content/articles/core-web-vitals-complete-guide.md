@@ -22,7 +22,7 @@ keywords:
   - "core web vitals complete guide"
   - "lcp"
   - "Technical SEO"
-draft: true
+draft: false
 internalLinks:
   - slug: "technical-seo-foundations"
     anchor: "technical seo foundations"

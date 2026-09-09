@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "astro dev",
-    "build": "astro build",
+    "build": "astro build && npm run audit",
     "preview": "astro preview",
     "audit": "tsx scripts/audit-dist.ts",
     "check": "astro check"

@@ -1,7 +1,12 @@
 import { defineCollection, z } from "astro:content";
 import { glob } from "astro/loaders";
+import { ISO_DATE, toIsoDateString } from "./lib/isoDate";
 
-const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+/** YAML Date or YYYY-MM-DD string → YYYY-MM-DD string. */
+const isoDate = z.union([
+  z.date().transform((value) => toIsoDateString(value)!),
+  z.string().regex(ISO_DATE),
+]);
 
 const articles = defineCollection({
   loader: glob({ pattern: "*.md", base: "./src/content/articles" }),

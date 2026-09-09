@@ -4,20 +4,42 @@ import { defineConfig } from "astro/config";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { ARTICLES_BASE, SITE_URL } from "./src/config/site";
+import { toIsoDateString } from "./src/lib/isoDate";
+import { rehypeKeyTakeaways } from "./src/lib/key-takeaways";
 import { rehypeEmitWtsComments, remarkPreserveWts } from "./src/lib/wts-comments";
 
+function frontmatterBlock(raw) {
+  const match = /^---\r?\n([\s\S]*?)\r?\n---/.exec(raw);
+  return match ? match[1] : "";
+}
+
+function frontmatterScalar(fm, key) {
+  const match = new RegExp(`^${key}:\\s*(.+?)\\s*$`, "m").exec(fm);
+  if (!match) return undefined;
+  let value = match[1];
+  if (
+    (value.startsWith('"') && value.endsWith('"')) ||
+    (value.startsWith("'") && value.endsWith("'"))
+  ) {
+    value = value.slice(1, -1);
+  }
+  return value;
+}
+
+/** lastmod from the same Date / YYYY-MM-DD / datetime values the article schema accepts. */
 function articleLastmodMap() {
   const dir = join("src", "content", "articles");
-    const map = new Map();
+  const map = new Map();
   try {
     for (const file of readdirSync(dir)) {
       if (!file.endsWith(".md")) continue;
       const raw = readFileSync(join(dir, file), "utf8");
-      if (/^draft:\s*true\s*$/m.test(raw)) continue;
+      const fm = frontmatterBlock(raw);
+      if (frontmatterScalar(fm, "draft") === "true") continue;
       const slug = file.replace(/\.md$/, "");
-      const date = raw.match(/^date:\s*"?(\d{4}-\d{2}-\d{2})"?/m)?.[1];
-      const updated = raw.match(/^updatedDate:\s*"?(\d{4}-\d{2}-\d{2})"?/m)?.[1];
-      const lastmod = updated || date;
+      const lastmod =
+        toIsoDateString(frontmatterScalar(fm, "updatedDate")) ||
+        toIsoDateString(frontmatterScalar(fm, "date"));
       if (lastmod) map.set(`/${ARTICLES_BASE}/${slug}/`, lastmod);
     }
   } catch {
@@ -34,7 +56,7 @@ export default defineConfig({
   redirects: {},
   markdown: {
     remarkPlugins: [remarkPreserveWts],
-    rehypePlugins: [rehypeEmitWtsComments],
+    rehypePlugins: [rehypeEmitWtsComments, rehypeKeyTakeaways],
   },
   integrations: [
     tailwind(),

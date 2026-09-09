@@ -21,7 +21,7 @@ keywords:
   - "technical seo foundations (no volume data)"
   - "crawlability"
   - "Technical SEO"
-draft: true
+draft: false
 internalLinks:
   - slug: "improve-core-web-vitals-howto"
     anchor: "improve core web vitals"
