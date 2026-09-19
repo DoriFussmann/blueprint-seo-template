@@ -12,7 +12,8 @@ function remToScreens(breakpoints) {
 export default {
   content: [
     "./src/**/*.{astro,html,js,ts}",
-    "../../seo-core/src/**/*.{astro,html,js,ts}",
+    "./node_modules/seo-core/src/**/*.{astro,html,js,ts}",
+    "../node_modules/seo-core/src/**/*.{astro,html,js,ts}",
   ],
   theme: {
     extend: {
