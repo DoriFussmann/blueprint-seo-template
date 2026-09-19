@@ -4,9 +4,7 @@ import { defineConfig } from "astro/config";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { ARTICLES_BASE, SITE_URL } from "./src/config/site";
-import { toIsoDateString } from "./src/lib/isoDate";
-import { rehypeKeyTakeaways } from "./src/lib/key-takeaways";
-import { rehypeEmitWtsComments, remarkPreserveWts } from "./src/lib/wts-comments";
+import { rehypeEmitWtsComments, rehypeKeyTakeaways, remarkPreserveWts, toIsoDateString } from "seo-core";
 
 function frontmatterBlock(raw) {
   const match = /^---\r?\n([\s\S]*?)\r?\n---/.exec(raw);
@@ -54,6 +52,11 @@ export default defineConfig({
   trailingSlash: "always",
   prefetch: { prefetchAll: false, defaultStrategy: "hover" },
   redirects: {},
+  vite: {
+    ssr: {
+      noExternal: ["seo-core"],
+    },
+  },
   markdown: {
     remarkPlugins: [remarkPreserveWts],
     rehypePlugins: [rehypeEmitWtsComments, rehypeKeyTakeaways],

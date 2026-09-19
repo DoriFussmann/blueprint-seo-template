@@ -2,9 +2,9 @@
 import "../styles/global.css";
 import Header from "../components/Header.astro";
 import Footer from "../components/Footer.astro";
-import BackToTop from "../components/BackToTop.astro";
-import { SITE_NAME, GOOGLE_SITE_VERIFICATION } from "../config/site";
-import { abs } from "../lib/url";
+import BackToTop from "seo-core/components/BackToTop.astro";
+import { SITE_NAME, SITE_URL, GOOGLE_SITE_VERIFICATION } from "../config/site";
+import { abs } from "seo-core";
 import interLatin from "@fontsource-variable/inter/files/inter-latin-wght-normal.woff2?url";
 
 interface Props {
@@ -44,10 +44,10 @@ const {
 if (!title) throw new Error("BaseLayout requires a title");
 if (!description) throw new Error("BaseLayout requires a description");
 
-const canonical = abs(canonicalPath);
+const canonical = abs(canonicalPath, SITE_URL);
 const metaDescription = description;
 const ogDesc = ogDescription || metaDescription;
-const rssHref = abs("/rss.xml");
+const rssHref = abs("/rss.xml", SITE_URL);
 ---
 
 <!doctype html>

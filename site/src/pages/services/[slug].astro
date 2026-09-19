@@ -1,10 +1,9 @@
 ---
 import { getCollection, render } from "astro:content";
 import BaseLayout from "../../layouts/BaseLayout.astro";
-import Breadcrumbs from "../../components/Breadcrumbs.astro";
-import { SITE_NAME, SITE_URL } from "../../config/site";
-import { abs } from "../../lib/url";
-import { breadcrumbNode, orgNode, websiteNode } from "../../lib/jsonld";
+import Breadcrumbs from "seo-core/components/Breadcrumbs.astro";
+import { SAME_AS, SITE_NAME, SITE_URL } from "../../config/site";
+import { abs, breadcrumbNode, orgNode, websiteNode } from "seo-core";
 
 export async function getStaticPaths() {
   const services = await getCollection("services");
@@ -13,17 +12,18 @@ export async function getStaticPaths() {
 
 const { service } = Astro.props;
 const { Content } = await render(service);
-const pageUrl = abs(`/services/${service.id}/`);
+const site = { siteUrl: SITE_URL, siteName: SITE_NAME, sameAs: SAME_AS };
+const pageUrl = abs(`/services/${service.id}/`, SITE_URL);
 const crumbs = [
-  { name: "Home", href: abs("/") },
+  { name: "Home", href: abs("/", SITE_URL) },
   { name: service.data.title, href: pageUrl },
 ];
 const jsonLd = {
   "@context": "https://schema.org",
   "@graph": [
-    orgNode(),
-    websiteNode(),
-    breadcrumbNode(crumbs),
+    orgNode(site),
+    websiteNode(site),
+    breadcrumbNode(crumbs, SITE_URL),
     {
       "@type": "Service",
       "@id": `${pageUrl}#service`,

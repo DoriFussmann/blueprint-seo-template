@@ -3,11 +3,9 @@ import { getCollection } from "astro:content";
 import { Image, getImage } from "astro:assets";
 import MarkdownIt from "markdown-it";
 import BaseLayout from "../../layouts/BaseLayout.astro";
-import Breadcrumbs from "../../components/Breadcrumbs.astro";
-import { ARTICLES_BASE, SITE_NAME } from "../../config/site";
-import { formatDate } from "../../lib/formatDate";
-import { abs } from "../../lib/url";
-import { breadcrumbNode, orgNode, personNode, websiteNode } from "../../lib/jsonld";
+import Breadcrumbs from "seo-core/components/Breadcrumbs.astro";
+import { ARTICLES_BASE, SAME_AS, SITE_NAME, SITE_URL } from "../../config/site";
+import { abs, breadcrumbNode, formatDate, orgNode, personNode, websiteNode } from "seo-core";
 
 export async function getStaticPaths() {
   const team = await getCollection("team");
@@ -22,23 +20,25 @@ const photo = await getImage({ src: member.data.photo, width: 400, height: 400 }
 const md = new MarkdownIt();
 const bioHtml = md.render(member.data.bio);
 const bioPlain = bioHtml.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+const site = { siteUrl: SITE_URL, siteName: SITE_NAME, sameAs: SAME_AS };
 const crumbs = [
-  { name: "Home", href: abs("/") },
-  { name: "Team", href: abs("/team/") },
-  { name: member.data.name, href: abs(`/team/${member.id}/`) },
+  { name: "Home", href: abs("/", SITE_URL) },
+  { name: "Team", href: abs("/team/", SITE_URL) },
+  { name: member.data.name, href: abs(`/team/${member.id}/`, SITE_URL) },
 ];
 const person = personNode({
   slug: member.id,
   name: member.data.name,
   role: member.data.role,
   description: bioPlain.slice(0, 300),
-  image: abs(photo.src),
+  image: abs(photo.src, SITE_URL),
   sameAs: member.data.sameAs,
   knowsAbout: member.data.knowsAbout,
+  siteUrl: SITE_URL,
 });
 const jsonLd = {
   "@context": "https://schema.org",
-  "@graph": [orgNode(), websiteNode(), person, breadcrumbNode(crumbs)],
+  "@graph": [orgNode(site), websiteNode(site), person, breadcrumbNode(crumbs, SITE_URL)],
 };
 const description =
   bioPlain.length >= 140 && bioPlain.length <= 160

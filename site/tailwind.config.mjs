@@ -10,7 +10,10 @@ function remToScreens(breakpoints) {
 
 /** @type {import('tailwindcss').Config} */
 export default {
-  content: ["./src/**/*.{astro,html,js,ts}"],
+  content: [
+    "./src/**/*.{astro,html,js,ts}",
+    "../../seo-core/src/**/*.{astro,html,js,ts}",
+  ],
   theme: {
     extend: {
       colors: {

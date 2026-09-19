@@ -1,11 +1,10 @@
 ---
 import { getCollection } from "astro:content";
 import BaseLayout from "../../layouts/BaseLayout.astro";
-import Breadcrumbs from "../../components/Breadcrumbs.astro";
-import ArticleListing from "../../components/ArticleListing.astro";
-import { ARTICLES_BASE, SITE_NAME } from "../../config/site";
-import { abs } from "../../lib/url";
-import { breadcrumbNode, orgNode, websiteNode } from "../../lib/jsonld";
+import Breadcrumbs from "seo-core/components/Breadcrumbs.astro";
+import ArticleListing from "seo-core/components/ArticleListing.astro";
+import { ARTICLES_BASE, SAME_AS, SITE_NAME, SITE_URL } from "../../config/site";
+import { abs, breadcrumbNode, orgNode, websiteNode } from "seo-core";
 
 const PAGE_SIZE = 12;
 const all = (await getCollection("articles", ({ data }) => data.draft !== true)).sort(
@@ -15,13 +14,14 @@ const pages = Math.max(1, Math.ceil(all.length / PAGE_SIZE));
 const slice = all.slice(0, PAGE_SIZE);
 const pillars = [...new Set(all.map((a) => a.data.pillarKeyword).filter(Boolean))] as string[];
 const canonicalPath = `/${ARTICLES_BASE}/`;
+const site = { siteUrl: SITE_URL, siteName: SITE_NAME, sameAs: SAME_AS };
 const crumbs = [
-  { name: "Home", href: abs("/") },
-  { name: "Articles", href: abs(canonicalPath) },
+  { name: "Home", href: abs("/", SITE_URL) },
+  { name: "Articles", href: abs(canonicalPath, SITE_URL) },
 ];
 const jsonLd = {
   "@context": "https://schema.org",
-  "@graph": [orgNode(), websiteNode(), breadcrumbNode(crumbs)],
+  "@graph": [orgNode(site), websiteNode(site), breadcrumbNode(crumbs, SITE_URL)],
 };
 ---
 
@@ -34,6 +34,6 @@ const jsonLd = {
   <div class="container-page py-10">
     <Breadcrumbs crumbs={crumbs} />
     <h1 class="font-serif text-4xl mb-6">Articles</h1>
-    <ArticleListing articles={slice} pillars={pillars} page={1} pages={pages} />
+      <ArticleListing articles={slice} pillars={pillars} page={1} pages={pages} articlesBase={ARTICLES_BASE} />
   </div>
 </BaseLayout>

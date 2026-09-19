@@ -1,10 +1,8 @@
 ---
 import { getCollection } from "astro:content";
 import BaseLayout from "../layouts/BaseLayout.astro";
-import { ARTICLES_BASE, SITE_NAME, SITE_TAGLINE } from "../config/site";
-import { formatDate } from "../lib/formatDate";
-import { abs } from "../lib/url";
-import { faqPageNode, orgNode, websiteNode } from "../lib/jsonld";
+import { ARTICLES_BASE, SITE_NAME, SITE_TAGLINE, SITE_URL, SAME_AS } from "../config/site";
+import { abs, faqPageNode, formatDate, orgNode, websiteNode } from "seo-core";
 
 const articles = (await getCollection("articles", ({ data }) => data.draft !== true)).sort(
   (a, b) => (b.data.updatedDate || b.data.date).localeCompare(a.data.updatedDate || a.data.date),
@@ -29,10 +27,11 @@ const faqs = [
     answer: "Published articles are listed under Articles. Each piece is a markdown file with structured frontmatter.",
   },
 ];
-const pageUrl = abs("/");
+const site = { siteUrl: SITE_URL, siteName: SITE_NAME, sameAs: SAME_AS };
+const pageUrl = abs("/", SITE_URL);
 const jsonLd = {
   "@context": "https://schema.org",
-  "@graph": [orgNode(), websiteNode(), faqPageNode(faqs, pageUrl)],
+  "@graph": [orgNode(site), websiteNode(site), faqPageNode(faqs, pageUrl)],
 };
 ---
 

@@ -1,9 +1,10 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
-import { SITE_NAME } from "../config/site";
-import { orgNode, websiteNode } from "../lib/jsonld";
+import { SAME_AS, SITE_NAME, SITE_URL } from "../config/site";
+import { orgNode, websiteNode } from "seo-core";
 
-const jsonLd = { "@context": "https://schema.org", "@graph": [orgNode(), websiteNode()] };
+const site = { siteUrl: SITE_URL, siteName: SITE_NAME, sameAs: SAME_AS };
+const jsonLd = { "@context": "https://schema.org", "@graph": [orgNode(site), websiteNode(site)] };
 ---
 
 <BaseLayout

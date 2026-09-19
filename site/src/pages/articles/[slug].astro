@@ -1,12 +1,11 @@
 ---
 import { getCollection, getEntry, type CollectionEntry } from "astro:content";
-import ArticleLayout from "../../layouts/ArticleLayout.astro";
+import ArticleLayout from "seo-core/layouts/ArticleLayout.astro";
 import BaseLayout from "../../layouts/BaseLayout.astro";
-import Breadcrumbs from "../../components/Breadcrumbs.astro";
-import ArticleListing from "../../components/ArticleListing.astro";
-import { ARTICLES_BASE, SITE_NAME } from "../../config/site";
-import { abs } from "../../lib/url";
-import { breadcrumbNode, orgNode, websiteNode } from "../../lib/jsonld";
+import Breadcrumbs from "seo-core/components/Breadcrumbs.astro";
+import ArticleListing from "seo-core/components/ArticleListing.astro";
+import { ARTICLES_BASE, SAME_AS, SITE_NAME, SITE_URL } from "../../config/site";
+import { abs, breadcrumbNode, orgNode, websiteNode } from "seo-core";
 
 export async function getStaticPaths() {
   const PAGE_SIZE = 12;
@@ -60,16 +59,24 @@ const listing =
         pillars: [...new Set(props.articles.map((a) => a.data.pillarKeyword).filter(Boolean))] as string[],
         canonicalPath: `/${ARTICLES_BASE}/${props.page}/`,
         crumbs: [
-          { name: "Home", href: abs("/") },
-          { name: "Articles", href: abs(`/${ARTICLES_BASE}/`) },
-          { name: `Page ${props.page}`, href: abs(`/${ARTICLES_BASE}/${props.page}/`) },
+          { name: "Home", href: abs("/", SITE_URL) },
+          { name: "Articles", href: abs(`/${ARTICLES_BASE}/`, SITE_URL) },
+          { name: `Page ${props.page}`, href: abs(`/${ARTICLES_BASE}/${props.page}/`, SITE_URL) },
         ],
       }
     : null;
 ---
 
 {props.kind === "article" && author && (
-  <ArticleLayout article={props.article} author={author} />
+  <ArticleLayout
+    article={props.article}
+    author={author}
+    Layout={BaseLayout}
+    siteUrl={SITE_URL}
+    siteName={SITE_NAME}
+    articlesBase={ARTICLES_BASE}
+    sameAs={SAME_AS}
+  />
 )}
 
 {props.kind === "page" && listing && (
@@ -79,13 +86,13 @@ const listing =
     canonicalPath={listing.canonicalPath}
     jsonLd={{
       "@context": "https://schema.org",
-      "@graph": [orgNode(), websiteNode(), breadcrumbNode(listing.crumbs)],
+      "@graph": [orgNode({ siteUrl: SITE_URL, siteName: SITE_NAME, sameAs: SAME_AS }), websiteNode({ siteUrl: SITE_URL, siteName: SITE_NAME, sameAs: SAME_AS }), breadcrumbNode(listing.crumbs, SITE_URL)],
     }}
   >
     <div class="container-page py-10">
       <Breadcrumbs crumbs={listing.crumbs} />
       <h1 class="font-serif text-4xl mb-6">Articles</h1>
-      <ArticleListing articles={listing.slice} pillars={listing.pillars} page={listing.page} pages={listing.pages} />
+      <ArticleListing articles={listing.slice} pillars={listing.pillars} page={listing.page} pages={listing.pages} articlesBase={ARTICLES_BASE} />
     </div>
   </BaseLayout>
 )}
