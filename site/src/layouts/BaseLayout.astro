@@ -6,6 +6,7 @@ import BackToTop from "seo-core/components/BackToTop.astro";
 import { SITE_NAME, SITE_URL, GOOGLE_SITE_VERIFICATION } from "../config/site";
 import { abs } from "seo-core";
 import interLatin from "@fontsource-variable/inter/files/inter-latin-wght-normal.woff2?url";
+import { themeCss, tokens } from "../../design-tokens.mjs";
 
 interface Props {
   title: string;
@@ -51,9 +52,23 @@ const rssHref = abs("/rss.xml", SITE_URL);
 ---
 
 <!doctype html>
-<html lang="en">
+<html
+  lang="en"
+  data-template={tokens.template}
+  data-mode={tokens.mode}
+  data-header={tokens.variants.header}
+  data-hero={tokens.variants.hero}
+  data-card={tokens.variants.card}
+  data-rhythm={tokens.variants.rhythm}
+  data-button={tokens.shape.button}
+  data-density={tokens.layout.density}
+  data-motion={tokens.motion.style}
+  data-texture={tokens.variants.texture}
+  style={`color-scheme: ${tokens.mode}`}
+>
   <head>
     <meta charset="utf-8" />
+    <style is:inline set:html={themeCss()}></style>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{title}</title>
     <meta name="description" content={metaDescription} />
@@ -95,5 +110,63 @@ const rssHref = abs("/rss.xml", SITE_URL);
     </main>
     <Footer />
     <BackToTop />
+    <noscript>
+      <style>
+        .reveal {
+          opacity: 1 !important;
+          transform: none !important;
+        }
+      </style>
+    </noscript>
+    <script is:inline>
+      (function () {
+        var root = document.documentElement;
+        var motion = root.getAttribute("data-motion");
+        var reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        var nodes = Array.prototype.slice.call(document.querySelectorAll(".reveal"));
+        function show(el) {
+          el.classList.add("is-in");
+        }
+        if (reduced || motion === "none" || nodes.length === 0) {
+          nodes.forEach(show);
+          return;
+        }
+        var raw = getComputedStyle(root).getPropertyValue("--motion-stagger").trim();
+        var stagger = parseFloat(raw) || 0;
+        nodes.forEach(function (el) {
+          var index = parseInt(el.getAttribute("data-index") || "0", 10);
+          if (!isFinite(index)) index = 0;
+          el.style.transitionDelay = index * stagger + "ms";
+        });
+        var hero = nodes.filter(function (el) {
+          return el.closest(".hero");
+        });
+        var rest = nodes.filter(function (el) {
+          return !el.closest(".hero");
+        });
+        requestAnimationFrame(function () {
+          requestAnimationFrame(function () {
+            hero.forEach(show);
+          });
+        });
+        if (!("IntersectionObserver" in window)) {
+          rest.forEach(show);
+          return;
+        }
+        var io = new IntersectionObserver(
+          function (entries) {
+            entries.forEach(function (entry) {
+              if (!entry.isIntersecting) return;
+              entry.target.classList.add("is-in");
+              io.unobserve(entry.target);
+            });
+          },
+          { root: null, rootMargin: "0px 0px -80px 0px", threshold: 0.01 },
+        );
+        rest.forEach(function (el) {
+          io.observe(el);
+        });
+      })();
+    </script>
   </body>
 </html>
