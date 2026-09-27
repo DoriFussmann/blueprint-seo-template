@@ -1,12 +1,4 @@
-import { tokens } from "./design-tokens.mjs";
-
-function remToScreens(breakpoints) {
-  const screens = {};
-  for (const [name, value] of Object.entries(breakpoints)) {
-    screens[name] = value;
-  }
-  return screens;
-}
+import { tokens, typeScale } from "./design-tokens.mjs";
 
 /** @type {import('tailwindcss').Config} */
 export default {
@@ -18,30 +10,43 @@ export default {
   theme: {
     extend: {
       colors: {
-        bg: tokens.colors.bg,
-        fg: tokens.colors.fg,
+        bg: "var(--c-bg)",
+        surface: "var(--c-surface)",
+        surfaceAlt: "var(--c-surfaceAlt)",
+        fg: "var(--c-fg)",
+        muted: "var(--c-muted)",
+        border: "var(--c-border)",
         accent: {
-          DEFAULT: tokens.colors.accent,
-          hover: tokens.colors["accent-hover"],
+          DEFAULT: "var(--c-accent)",
+          hover: "var(--c-accentHover)",
+          fg: "var(--c-accentFg)",
         },
-        highlight: tokens.colors.highlight,
-        muted: tokens.colors.muted,
-        border: tokens.colors.border,
-        surface: tokens.colors.surface,
-        focus: tokens.colors.focus,
+        highlight: "var(--c-highlight)",
+        band: "var(--c-band)",
+        bandFg: "var(--c-bandFg)",
+        bandMuted: "var(--c-bandMuted)",
+        headerBg: "var(--c-headerBg)",
+        headerFg: "var(--c-headerFg)",
+        footerBg: "var(--c-footerBg)",
+        footerFg: "var(--c-footerFg)",
+        focus: "var(--c-focus)",
       },
       fontFamily: {
-        sans: [tokens.fonts.sans, "system-ui", "sans-serif"],
-        serif: [tokens.fonts.serif, "Georgia", "serif"],
+        sans: [
+          "Inter Variable",
+          "system-ui",
+          "Segoe UI",
+          "Roboto",
+          "Helvetica Neue",
+          "Arial",
+          "sans-serif",
+        ],
       },
-      fontSize: tokens.typeScale,
-      spacing: {
-        unit: tokens.spacingUnit,
-      },
-      screens: remToScreens(tokens.breakpoints),
+      fontSize: typeScale,
+      screens: tokens.breakpoints,
       maxWidth: {
-        container: tokens.maxWidth.container,
-        article: tokens.maxWidth.article,
+        container: "var(--container)",
+        measure: "var(--measure)",
       },
     },
   },
