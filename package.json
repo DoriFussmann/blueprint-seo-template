@@ -10,6 +10,7 @@
     "dev": "npm run dev --workspace=site",
     "build": "npm run build --workspace=site && npm run audit",
     "audit": "npm run audit --workspace=site",
-    "check": "npm run check --workspace=site"
+    "check": "npm run check --workspace=site",
+    "theme:test": "npm run theme:test --workspace=site"
   }
 }
