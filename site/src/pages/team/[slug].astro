@@ -52,7 +52,7 @@ const description =
   canonicalPath={`/team/${member.id}/`}
   jsonLd={jsonLd}
 >
-  <div class="container-page py-10">
+  <div class="container-page section flex flex-col gap-8">
     <Breadcrumbs crumbs={crumbs} />
     <div class="flex flex-col md:flex-row gap-8 mb-10">
       <Image
@@ -62,24 +62,24 @@ const description =
         alt={`${member.data.name} headshot`}
         loading="eager"
         fetchpriority="high"
-        class="w-80 h-80 object-cover"
+        class="avatar avatar-lg"
       />
-      <div>
-        <h1 class="font-serif text-4xl mb-2">{member.data.name}</h1>
-        <p class="text-muted mb-4">{member.data.role}</p>
+      <div class="flex flex-col gap-4">
+        <h1 class="h1">{member.data.name}</h1>
+        <p class="muted">{member.data.role}</p>
         <div class="prose-article" set:html={bioHtml} />
         {member.data.credentials.length > 0 && (
-          <section class="mt-6" aria-labelledby="creds-heading">
-            <h2 id="creds-heading" class="font-serif text-2xl mb-2">Credentials</h2>
-            <ul class="list-disc ml-6">
+          <section aria-labelledby="creds-heading">
+            <h2 id="creds-heading" class="h2">Credentials</h2>
+            <ul class="link-list">
               {member.data.credentials.map((item) => <li>{item}</li>)}
             </ul>
           </section>
         )}
         {member.data.sameAs.length > 0 && (
-          <p class="mt-4 flex flex-col gap-2">
+          <p class="flex flex-col gap-2">
             {member.data.sameAs.map((url) => (
-              <a class="text-accent underline py-2" href={url} rel="noopener" target="_blank">{url}</a>
+              <a href={url} rel="noopener" target="_blank">{url}</a>
             ))}
           </p>
         )}
@@ -87,12 +87,12 @@ const description =
     </div>
     {articles.length > 0 && (
       <section aria-labelledby="authored-heading">
-        <h2 id="authored-heading" class="font-serif text-3xl mb-4">Articles</h2>
-        <ul class="space-y-3">
+        <h2 id="authored-heading" class="h2">Articles</h2>
+        <ul class="flex flex-col gap-3">
           {articles.map((article) => (
             <li>
-              <a class="text-accent underline" href={`/${ARTICLES_BASE}/${article.id}/`}>{article.data.title}</a>
-              <span class="text-muted text-sm"> · {formatDate(article.data.updatedDate || article.data.date)}</span>
+              <a href={`/${ARTICLES_BASE}/${article.id}/`}>{article.data.title}</a>
+              <span class="muted"> · {formatDate(article.data.updatedDate || article.data.date)}</span>
             </li>
           ))}
         </ul>

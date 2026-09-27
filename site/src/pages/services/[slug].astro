@@ -42,9 +42,9 @@ const jsonLd = {
   canonicalPath={`/services/${service.id}/`}
   jsonLd={jsonLd}
 >
-  <div class="container-page py-10">
+  <div class="container-page section flex flex-col gap-6">
     <Breadcrumbs crumbs={crumbs} />
-    <h1 class="font-serif text-4xl mb-4">{service.data.title}</h1>
+    <h1 class="h1">{service.data.title}</h1>
     <div class="prose-article">
       <Content />
     </div>

@@ -31,9 +31,9 @@ const jsonLd = {
   canonicalPath={canonicalPath}
   jsonLd={jsonLd}
 >
-  <div class="container-page py-10">
+  <div class="container-page section flex flex-col gap-6">
     <Breadcrumbs crumbs={crumbs} />
-    <h1 class="font-serif text-4xl mb-6">Articles</h1>
+    <h1 class="h1">Articles</h1>
       <ArticleListing articles={slice} pillars={pillars} page={1} pages={pages} articlesBase={ARTICLES_BASE} />
   </div>
 </BaseLayout>

@@ -13,6 +13,6 @@ export async function GET(context: APIContext) {
     siteUrl: SITE_URL,
     articlesBase: ARTICLES_BASE,
     site: context.site ?? SITE_URL,
-    articles,
+    articles: articles.map((article) => ({ ...article, body: article.body ?? "" })),
   });
 }

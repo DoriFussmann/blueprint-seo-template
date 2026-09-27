@@ -24,9 +24,9 @@ const jsonLd = {
   canonicalPath="/team/"
   jsonLd={jsonLd}
 >
-  <div class="container-page py-10">
+  <div class="container-page section flex flex-col gap-8">
     <Breadcrumbs crumbs={crumbs} />
-    <h1 class="font-serif text-4xl mb-8">Team</h1>
+    <h1 class="h1">Team</h1>
     <ul class="grid gap-8 md:grid-cols-2">
       {team.map((member) => (
         <li class="flex gap-4">
@@ -36,13 +36,13 @@ const jsonLd = {
             height={120}
             alt={`${member.data.name} headshot`}
             loading="lazy"
-            class="w-[120px] h-[120px] object-cover"
+            class="avatar"
           />
           <div>
-            <h2 class="font-serif text-2xl">
-              <a class="hover:text-accent" href={`/team/${member.id}/`}>{member.data.name}</a>
+            <h2 class="h3">
+              <a href={`/team/${member.id}/`}>{member.data.name}</a>
             </h2>
-            <p class="text-muted">{member.data.role}</p>
+            <p class="muted">{member.data.role}</p>
           </div>
         </li>
       ))}
