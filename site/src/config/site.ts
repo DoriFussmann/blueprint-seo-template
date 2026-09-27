@@ -10,3 +10,21 @@ export const AI_CRAWLERS: Record<string, "allow" | "deny"> = {
   GPTBot: "allow", ClaudeBot: "allow", "Claude-Web": "allow",
   PerplexityBot: "allow", "Google-Extended": "allow", CCBot: "deny",
 };
+
+export const NAV: { label: string; href: string }[] = [
+  { label: "About", href: "/about/" },
+  { label: "Services", href: "/services/" },
+  { label: "Articles", href: `/${ARTICLES_BASE}/` },
+  { label: "Contact", href: "/contact/" },
+];
+
+export const HEADER_CTA = { label: "Contact", href: "/contact/" };
+
+export const LEGAL_LINKS: { label: string; href: string }[] = [
+  { label: "Privacy", href: "/privacy/" },
+  { label: "Terms", href: "/terms/" },
+];
+
+if (!NAV.some((item) => item.href === `/${ARTICLES_BASE}/`)) {
+  throw new Error("Articles must stay in NAV");
+}

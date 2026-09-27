@@ -1,26 +1,28 @@
 ---
-import { ARTICLES_BASE, SITE_NAME } from "../config/site";
+import { HEADER_CTA, NAV } from "../config/site";
+import Wordmark from "./Wordmark.astro";
 ---
 
-<header class="border-b border-border bg-surface">
-  <div class="container-page flex items-center justify-between gap-4 py-2">
-    <a href="/" class="font-serif text-xl py-3">{SITE_NAME}</a>
+<header class="site-header">
+  <div class="container-page header-bar">
+    <Wordmark />
     <button
       type="button"
       id="nav-toggle"
-      class="tap-target inline-flex items-center justify-center md:hidden"
+      class="nav-toggle"
       aria-expanded="false"
       aria-controls="site-nav"
     >
       <span class="sr-only">Menu</span>
       <span aria-hidden="true">☰</span>
     </button>
-    <nav id="site-nav" class="hidden md:block">
+    <nav id="site-nav" class="site-nav hidden md:flex">
       <ul class="flex flex-col md:flex-row md:items-center">
-        <li><a class="nav-link" href="/">Home</a></li>
-        <li><a class="nav-link" href={`/${ARTICLES_BASE}/`}>Articles</a></li>
-        <li><a class="nav-link" href="/team/">Team</a></li>
+        {NAV.map((item) => (
+          <li><a class="nav-link" href={item.href}>{item.label}</a></li>
+        ))}
       </ul>
+      <a class="btn btn-primary" href={HEADER_CTA.href}>{HEADER_CTA.label}</a>
     </nav>
   </div>
 </header>
