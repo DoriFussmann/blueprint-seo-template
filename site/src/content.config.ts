@@ -1,6 +1,7 @@
 import { defineCollection } from "astro:content";
 import { glob } from "astro/loaders";
 import { articleSchema, serviceSchema, teamSchema } from "seo-core";
+import { pageSchema } from "./lib/page-schema";
 
 const articles = defineCollection({
   loader: glob({ pattern: "*.md", base: "./src/content/articles" }),
@@ -17,4 +18,9 @@ const services = defineCollection({
   schema: serviceSchema,
 });
 
-export const collections = { articles, team, services };
+const pages = defineCollection({
+  loader: glob({ pattern: "*.yaml", base: "./src/content/pages" }),
+  schema: pageSchema,
+});
+
+export const collections = { articles, team, services, pages };
