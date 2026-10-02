@@ -18,6 +18,7 @@ interface Props {
   robots?: string;
   locale?: string;
   twitterCard?: "summary" | "summary_large_image";
+  alternateMarkdown?: string;
   jsonLd: Record<string, unknown>;
   articleMeta?: {
     publishedTime: string;
@@ -38,6 +39,7 @@ const {
   robots = "index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1",
   locale = "en_US",
   twitterCard = "summary_large_image",
+  alternateMarkdown,
   jsonLd,
   articleMeta,
 } = Astro.props;
@@ -74,6 +76,9 @@ const rssHref = abs("/rss.xml", SITE_URL);
     <meta name="description" content={metaDescription} />
     <meta name="robots" content={robots} />
     <link rel="canonical" href={canonical} />
+    {alternateMarkdown && (
+      <link rel="alternate" type="text/markdown" href={abs(alternateMarkdown, SITE_URL)} />
+    )}
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="alternate" type="application/rss+xml" title={SITE_NAME} href={rssHref} />
     {GOOGLE_SITE_VERIFICATION && (
@@ -86,6 +91,8 @@ const rssHref = abs("/rss.xml", SITE_URL);
     <meta property="og:url" content={canonical} />
     <meta property="og:locale" content={locale} />
     {ogImage && <meta property="og:image" content={ogImage} />}
+    {ogImage && <meta property="og:image:width" content="1200" />}
+    {ogImage && <meta property="og:image:height" content="675" />}
     {articleMeta && (
       <>
         <meta property="article:published_time" content={articleMeta.publishedTime} />

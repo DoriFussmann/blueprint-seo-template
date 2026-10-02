@@ -1,5 +1,7 @@
 import type { APIRoute } from "astro";
-import { getCollection } from "astro:content";
+import { getCollection, getEntry, type CollectionEntry } from "astro:content";
+import { generateArticleMarkdown } from "seo-core";
+import { ARTICLES_BASE, SITE_URL } from "../../../config/site";
 
 export async function getStaticPaths() {
   const articles = await getCollection("articles", ({ data }) => data.draft !== true);
@@ -10,18 +12,17 @@ export async function getStaticPaths() {
 }
 
 export const GET: APIRoute = async ({ props }) => {
-  const { article } = props;
-  const header = [
-    `# ${article.data.title}`,
-    "",
-    article.data.description,
-    "",
-    `Date: ${article.data.date}`,
-    `Author: ${article.data.author}`,
-    "",
-    "",
-  ].join("\n");
-  const body = `${header}${article.body.replace(/^\n+/, "")}\n`;
+  const { article } = props as { article: CollectionEntry<"articles"> };
+  const author = await getEntry("team", article.data.author);
+  if (!author) {
+    throw new Error(`Missing team member "${article.data.author}" for article "${article.id}"`);
+  }
+  const body = generateArticleMarkdown({
+    article,
+    author,
+    siteUrl: SITE_URL,
+    articlesBase: ARTICLES_BASE,
+  });
   return new Response(body, {
     headers: { "Content-Type": "text/markdown; charset=utf-8" },
   });
