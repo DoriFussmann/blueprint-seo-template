@@ -19,7 +19,7 @@ export const GET: APIRoute = async ({ props }) => {
   }
   const body = generateArticleMarkdown({
     article,
-    author,
+    author: { name: author.data.name, id: author.id },
     siteUrl: SITE_URL,
     articlesBase: ARTICLES_BASE,
   });
