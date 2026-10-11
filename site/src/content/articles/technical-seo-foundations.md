@@ -1,5 +1,6 @@
 ---
 title: "Technical SEO Foundations for Crawlability and Indexing"
+h1: "How Search Engines Crawl and Index Your Site"
 description: "This pillar explains how crawlability, indexation, and rendering choices decide whether search engines can discover, store, and rank your pages at all."
 slug: "technical-seo-foundations"
 date: "2026-08-14"

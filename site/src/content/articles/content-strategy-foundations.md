@@ -1,5 +1,6 @@
 ---
 title: "Content Strategy Foundations for Editorial SEO Teams 2026"
+h1: "How Editorial Teams Build an SEO Content Strategy"
 description: "A pillar on how editorial teams choose topics, assign supporting pieces, and keep a living cluster from cannibalizing itself as new drafts ship every month."
 slug: "content-strategy-foundations"
 date: "2026-08-17"

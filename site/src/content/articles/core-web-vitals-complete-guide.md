@@ -1,5 +1,6 @@
 ---
 title: "Core Web Vitals Complete Guide for Technical SEO in 2026"
+h1: "Core Web Vitals, Explained for Technical SEO"
 description: "A complete guide to Largest Contentful Paint, Interaction to Next Paint, and Cumulative Layout Shift, written for teams who already own crawl and index basics."
 slug: "core-web-vitals-complete-guide"
 date: "2026-08-15"
