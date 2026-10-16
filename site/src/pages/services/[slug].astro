@@ -2,7 +2,7 @@
 import { getCollection, render } from "astro:content";
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import Breadcrumbs from "seo-core/components/Breadcrumbs.astro";
-import { SAME_AS, SITE_NAME, SITE_URL } from "../../config/site";
+import { SITE_IDENTITY, SITE_NAME, SITE_URL } from "../../config/site";
 import { abs, breadcrumbNode, orgNode, websiteNode } from "seo-core";
 
 export async function getStaticPaths() {
@@ -12,7 +12,7 @@ export async function getStaticPaths() {
 
 const { service } = Astro.props;
 const { Content } = await render(service);
-const site = { siteUrl: SITE_URL, siteName: SITE_NAME, sameAs: SAME_AS };
+const site = SITE_IDENTITY;
 const pageUrl = abs(`/services/${service.id}/`, SITE_URL);
 const crumbs = [
   { name: "Home", href: abs("/", SITE_URL) },

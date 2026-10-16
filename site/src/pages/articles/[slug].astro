@@ -4,7 +4,7 @@ import ArticleLayout from "seo-core/layouts/ArticleLayout.astro";
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import Breadcrumbs from "seo-core/components/Breadcrumbs.astro";
 import ArticleListing from "seo-core/components/ArticleListing.astro";
-import { ARTICLES_BASE, SAME_AS, SITE_NAME, SITE_URL } from "../../config/site";
+import { ARTICLES_BASE, LOGO_PATH, SAME_AS, SITE_IDENTITY, SITE_NAME, SITE_URL } from "../../config/site";
 import { abs, breadcrumbNode, orgNode, websiteNode } from "seo-core";
 
 export async function getStaticPaths() {
@@ -75,6 +75,7 @@ const listing =
     siteUrl={SITE_URL}
     siteName={SITE_NAME}
     articlesBase={ARTICLES_BASE}
+    logo={LOGO_PATH}
     sameAs={SAME_AS}
   />
 )}
@@ -86,7 +87,7 @@ const listing =
     canonicalPath={listing.canonicalPath}
     jsonLd={{
       "@context": "https://schema.org",
-      "@graph": [orgNode({ siteUrl: SITE_URL, siteName: SITE_NAME, sameAs: SAME_AS }), websiteNode({ siteUrl: SITE_URL, siteName: SITE_NAME, sameAs: SAME_AS }), breadcrumbNode(listing.crumbs, SITE_URL)],
+      "@graph": [orgNode(SITE_IDENTITY), websiteNode(SITE_IDENTITY), breadcrumbNode(listing.crumbs, SITE_URL)],
     }}
   >
     <div class="container-page section flex flex-col gap-6">

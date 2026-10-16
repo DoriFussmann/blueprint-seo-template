@@ -1,5 +1,5 @@
 import { abs, breadcrumbNode, faqPageNode, orgNode, websiteNode } from "seo-core";
-import { SAME_AS, SITE_NAME, SITE_URL } from "../config/site";
+import { SITE_IDENTITY, SITE_URL } from "../config/site";
 
 interface PageData {
   route: string;
@@ -7,7 +7,7 @@ interface PageData {
 }
 
 export function pageJsonLd(data: PageData) {
-  const site = { siteUrl: SITE_URL, siteName: SITE_NAME, sameAs: SAME_AS };
+  const site = SITE_IDENTITY;
   const pageUrl = abs(data.route, SITE_URL);
   const graph: unknown[] = [orgNode(site), websiteNode(site)];
   if (data.route !== "/") {
