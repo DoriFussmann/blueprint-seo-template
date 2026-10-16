@@ -1,9 +1,9 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
-import { SAME_AS, SITE_NAME, SITE_URL } from "../config/site";
+import { SITE_IDENTITY, SITE_NAME } from "../config/site";
 import { orgNode, websiteNode } from "seo-core";
 
-const site = { siteUrl: SITE_URL, siteName: SITE_NAME, sameAs: SAME_AS };
+const site = SITE_IDENTITY;
 const jsonLd = { "@context": "https://schema.org", "@graph": [orgNode(site), websiteNode(site)] };
 ---
 

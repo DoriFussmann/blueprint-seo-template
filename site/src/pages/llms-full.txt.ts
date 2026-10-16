@@ -7,8 +7,6 @@ export const GET: APIRoute = async () => {
   const articles = (await getCollection("articles", ({ data }) => data.draft !== true)).sort(
     (a, b) => (b.data.updatedDate || b.data.date).localeCompare(a.data.updatedDate || a.data.date),
   );
-  const team = await getCollection("team");
-  const services = (await getCollection("services")).sort((a, b) => a.data.order - b.data.order);
 
   const body = generateLlmsFullTxt({
     siteUrl: SITE_URL,
@@ -16,8 +14,6 @@ export const GET: APIRoute = async () => {
     siteTagline: SITE_TAGLINE,
     articlesBase: ARTICLES_BASE,
     articles,
-    team,
-    services,
   });
 
   return new Response(body, {

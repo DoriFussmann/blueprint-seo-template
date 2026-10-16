@@ -4,7 +4,7 @@ import { Image, getImage } from "astro:assets";
 import MarkdownIt from "markdown-it";
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import Breadcrumbs from "seo-core/components/Breadcrumbs.astro";
-import { ARTICLES_BASE, SAME_AS, SITE_NAME, SITE_URL } from "../../config/site";
+import { ARTICLES_BASE, SITE_IDENTITY, SITE_NAME, SITE_URL } from "../../config/site";
 import { abs, breadcrumbNode, formatDate, orgNode, personNode, websiteNode } from "seo-core";
 
 export async function getStaticPaths() {
@@ -20,7 +20,7 @@ const photo = await getImage({ src: member.data.photo, width: 400, height: 400 }
 const md = new MarkdownIt();
 const bioHtml = md.render(member.data.bio);
 const bioPlain = bioHtml.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
-const site = { siteUrl: SITE_URL, siteName: SITE_NAME, sameAs: SAME_AS };
+const site = SITE_IDENTITY;
 const crumbs = [
   { name: "Home", href: abs("/", SITE_URL) },
   { name: "Team", href: abs("/team/", SITE_URL) },
