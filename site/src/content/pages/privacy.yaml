@@ -1,6 +1,6 @@
 route: /privacy/
-meta_title: Privacy — Site Name
-meta_description: Placeholder privacy policy. Replace this page with a reviewed policy before the site collects or describes any personal data.
+meta_title: "Privacy Policy — Site Name"
+meta_description: "Placeholder privacy policy for this publication template. Replace this page with a reviewed policy before the site collects or describes personal data."
 sections:
   - type: page-header
     eyebrow: Legal

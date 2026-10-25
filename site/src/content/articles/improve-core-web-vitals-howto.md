@@ -4,7 +4,7 @@ description: "Practical steps to improve LCP, INP, and CLS on article templates,
 slug: "improve-core-web-vitals-howto"
 date: "2026-08-16"
 updatedDate: "2026-08-16"
-author: "dori-fussmann"
+author: "site-author"
 category: "Technical SEO"
 pillarKeyword: "technical seo"
 supportingKeyword: "core web vitals"

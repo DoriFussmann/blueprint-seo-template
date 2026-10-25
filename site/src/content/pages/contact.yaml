@@ -1,6 +1,6 @@
 route: /contact/
-meta_title: Contact — Site Name
-meta_description: Placeholder contact page. Replace the address and the response note before sending readers here.
+meta_title: "Contact Site Name — how to reach the team and what to send"
+meta_description: "Placeholder contact page for this publication template. Replace the address, the intro and the response note before sending any readers to this page."
 sections:
   - type: page-header
     eyebrow: Contact

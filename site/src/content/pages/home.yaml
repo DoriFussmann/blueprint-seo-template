@@ -1,6 +1,6 @@
 route: /
-meta_title: Site Name — Primary positioning phrase
-meta_description: Placeholder homepage for this publication template. It previews every section in the library so a new theme can be checked before real copy replaces it.
+meta_title: "Site Name — Primary positioning phrase for the homepage"
+meta_description: "Placeholder homepage for this publication template. It previews every section in the library so a new theme can be checked before real copy replaces it."
 sections:
   - type: hero
     eyebrow: Publication

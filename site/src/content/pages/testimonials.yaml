@@ -1,6 +1,6 @@
 route: /testimonials/
-meta_title: Testimonials — Site Name
-meta_description: Placeholder testimonials page. Do not publish these notes as real statements. Replace them with reviewed quotes.
+meta_title: "Site Name testimonials — what clients say about the work"
+meta_description: "Placeholder testimonials page for this publication template. Do not publish these notes as real statements. Replace them with reviewed client quotes."
 sections:
   - type: page-header
     eyebrow: Testimonials

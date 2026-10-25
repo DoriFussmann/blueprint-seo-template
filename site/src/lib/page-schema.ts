@@ -1,4 +1,5 @@
 import { z } from "astro/zod";
+import { LENGTH_RULES, describeLengthRule, fitsLengthRule, type LengthRule } from "seo-core";
 
 const cta = z.object({
   label: z.string().min(1),
@@ -166,6 +167,9 @@ export const sectionSchema = z.discriminatedUnion("type", [
   articlesTeaser,
 ]);
 
+/** Pages whose meta_title only has a maximum (seo-core LEGAL_PAGE_PATHS). */
+const LEGAL_ROUTES = new Set(["/privacy/", "/terms/"]);
+
 export const pageSchema = z
   .object({
     route: z.string().regex(/^\/(?:[a-z0-9-]+\/)?$/, 'route must be "/" or "/slug/"'),
@@ -174,6 +178,21 @@ export const pageSchema = z
     sections: z.array(sectionSchema).min(1, "A page needs at least one section."),
   })
   .superRefine((page, ctx) => {
+    const legal = LEGAL_ROUTES.has(page.route);
+    const lengthChecks: [string, string, LengthRule][] = [
+      ["meta_title", page.meta_title, legal ? LENGTH_RULES.legalPageTitle : LENGTH_RULES.pageTitle],
+      ["meta_description", page.meta_description, LENGTH_RULES.pageDescription],
+    ];
+    for (const [field, value, rule] of lengthChecks) {
+      if (!fitsLengthRule(value, rule)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: [field],
+          message: `Page "${page.route}": ${field} is ${value.length} characters (want ${describeLengthRule(rule)}).`,
+        });
+      }
+    }
+
     const first = page.sections[0];
     const expected = page.route === "/" ? "hero" : "page-header";
     if (!first || first.type !== expected) {

@@ -1,6 +1,6 @@
 route: /faq/
-meta_title: FAQ — Site Name
-meta_description: Placeholder answers about this publication template. Replace each one with a reviewed answer before launch.
+meta_title: "Site Name FAQ — answers to the questions people ask first"
+meta_description: "Placeholder answers about this publication template. Replace each one with a reviewed answer from the business before the site launches to the public."
 sections:
   - type: page-header
     eyebrow: FAQ

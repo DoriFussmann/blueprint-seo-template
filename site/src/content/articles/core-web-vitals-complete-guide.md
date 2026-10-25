@@ -5,7 +5,7 @@ description: "A complete guide to Largest Contentful Paint, Interaction to Next 
 slug: "core-web-vitals-complete-guide"
 date: "2026-08-15"
 updatedDate: "2026-08-15"
-author: "dori-fussmann"
+author: "site-author"
 category: "Technical SEO"
 pillarKeyword: "technical seo"
 supportingKeyword: "core web vitals"

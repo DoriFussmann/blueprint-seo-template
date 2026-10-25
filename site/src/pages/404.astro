@@ -1,6 +1,6 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
-import { SITE_IDENTITY, SITE_NAME } from "../config/site";
+import { NOT_FOUND_DESCRIPTION, SITE_IDENTITY, SITE_NAME } from "../config/site";
 import { orgNode, websiteNode } from "seo-core";
 
 const site = SITE_IDENTITY;
@@ -9,7 +9,7 @@ const jsonLd = { "@context": "https://schema.org", "@graph": [orgNode(site), web
 
 <BaseLayout
   title={`Page not found — ${SITE_NAME}`}
-  description="The page you requested is not in this publication. Use the navigation to return home or browse articles."
+  description={NOT_FOUND_DESCRIPTION}
   canonicalPath="/404/"
   robots="noindex, follow"
   jsonLd={jsonLd}

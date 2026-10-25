@@ -1,6 +1,6 @@
 route: /about/
-meta_title: About — Site Name
-meta_description: Placeholder about page for this publication template. Replace it with the real story of the desk, the people, and the work.
+meta_title: "About Site Name — the story, the people and the approach"
+meta_description: "Placeholder about page for this publication template. Replace it with the real story of the desk, the people behind it, and the way the work gets done."
 sections:
   - type: page-header
     eyebrow: About

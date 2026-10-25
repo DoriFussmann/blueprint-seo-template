@@ -5,7 +5,7 @@ description: "This pillar explains how crawlability, indexation, and rendering c
 slug: "technical-seo-foundations"
 date: "2026-08-14"
 updatedDate: "2026-08-20"
-author: "dori-fussmann"
+author: "site-author"
 category: "Technical SEO"
 pillarKeyword: "technical seo"
 articleType: "comprehensive"

@@ -1,6 +1,6 @@
 route: /services/
-meta_title: Services — Site Name
-meta_description: Placeholder services page. The cards below are the services collection, each linking to its own page.
+meta_title: "Site Name services — what is offered and how it works"
+meta_description: "Placeholder services page for this publication template. The cards below come from the services collection, and each one links to its own detail page."
 sections:
   - type: page-header
     eyebrow: Services

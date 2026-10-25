@@ -1,0 +1,10 @@
+{
+  "public/logo.png": "c63b06a2740f0e723c4205c81a5e94e3a597135a0fc33a6282f8e959eae8127a",
+  "public/favicon.svg": "a7d85b5a1ead8587cee1380fc4b82e3bd157e878a98ea632fbb4732ec2689340",
+  "public/og-default.png": "4732e430a4b5ad10f1a875ed24b23506d02160413f2dfe19073fb310aa4d4e1a",
+  "src/assets/articles/content-strategy-foundations.png": "91b4ae6e23c7ee90260f9e39ce5c91398a0d6a73b48ca594f85b55349a9dc7bc",
+  "src/assets/articles/core-web-vitals-complete-guide.png": "d920e0296c7e5c4292b5692b61706e0be54d1b91fe7385a34f59c71ccce000d6",
+  "src/assets/articles/improve-core-web-vitals-howto.png": "2b7c36ee973b5496eab368eaaadcc98eabdbbc6eb817b1ede8e6c75c183dfa9d",
+  "src/assets/articles/technical-seo-foundations.png": "609a112562aab480ac43e4f844babf29bbb56b546403186c931b6fccbcf1db48",
+  "src/assets/team/site-author.png": "787ff68580e46a10cf7a567b1e396cfe5a085a58f27b296a22a34d9fed838ea1"
+}

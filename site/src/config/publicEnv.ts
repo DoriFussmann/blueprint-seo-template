@@ -4,8 +4,10 @@
  * feature off. Never put secrets here: PUBLIC_ values ship in the HTML.
  */
 
-/** Google Analytics 4 measurement ID ("G-XXXXXXXXXX"). */
-export const ANALYTICS_ID = String(import.meta.env.PUBLIC_ANALYTICS_ID ?? "")
+import { GA4_MEASUREMENT_ID } from "./site";
+
+/** Google Analytics 4 measurement ID ("G-XXXXXXXXXX"): Vercel's PUBLIC_ANALYTICS_ID, else site.ts. */
+export const ANALYTICS_ID = String(import.meta.env.PUBLIC_ANALYTICS_ID || GA4_MEASUREMENT_ID || "")
   .trim()
   .replace(/[^A-Za-z0-9-]/g, "");
 

@@ -5,7 +5,7 @@ description: "A pillar on how editorial teams choose topics, assign supporting p
 slug: "content-strategy-foundations"
 date: "2026-08-17"
 updatedDate: "2026-08-17"
-author: "dori-fussmann"
+author: "site-author"
 category: "Content Strategy"
 pillarKeyword: "content strategy"
 articleType: "comprehensive"

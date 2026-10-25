@@ -1,6 +1,6 @@
 route: /terms/
-meta_title: Terms — Site Name
-meta_description: Placeholder terms of use. Replace this page with reviewed terms before the site is offered to the public.
+meta_title: "Terms of Use — Site Name"
+meta_description: "Placeholder terms of use for this publication template. Replace this page with reviewed terms before the site is offered to the public in any form."
 sections:
   - type: page-header
     eyebrow: Legal

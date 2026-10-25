@@ -3,7 +3,7 @@ import { getCollection } from "astro:content";
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import Breadcrumbs from "seo-core/components/Breadcrumbs.astro";
 import ArticleListing from "seo-core/components/ArticleListing.astro";
-import { ARTICLES_BASE, SITE_IDENTITY, SITE_NAME, SITE_URL } from "../../config/site";
+import { ARTICLES_BASE, ARTICLES_DESCRIPTION, SITE_IDENTITY, SITE_NAME, SITE_URL } from "../../config/site";
 import { abs, breadcrumbNode, orgNode, websiteNode } from "seo-core";
 
 const PAGE_SIZE = 12;
@@ -27,7 +27,7 @@ const jsonLd = {
 
 <BaseLayout
   title={`${SITE_NAME} articles`}
-  description="Browse published articles covering technical SEO, content strategy, and the operational systems behind them."
+  description={ARTICLES_DESCRIPTION}
   canonicalPath={canonicalPath}
   jsonLd={jsonLd}
 >
